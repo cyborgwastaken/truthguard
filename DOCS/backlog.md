@@ -2,9 +2,19 @@
 
 Source of truth for the GitHub Project board. Each row becomes one issue.
 
-> The tables below are the original role plan. Final owners are in `OPS/github/create_backlog.py`
-> and on the board: cyborgwastaken takes P1+P2 and reviews every ticket; iamsarik P3; yashdiwan12 P4;
-> AshwaniArya2005 corpus/benchmark (T01, T10, T16, T19); dhruvt293 dashboard/docs/demo (T22, T25-T28).
+> **Current ownership** (supersedes the owner columns below; the role numbers there map to the roles in
+> `DOCS/team/`). The source of truth is `OPS/github/create_backlog.py` and the board.
+>
+> | Role | Primary | Secondary |
+> |---|---|---|
+> | 1 Backend and Database | cyborgwastaken | yashdiwan12 |
+> | 2 Retrieval and AI Pipeline | AshwaniArya2005 | cyborgwastaken, yashdiwan12 |
+> | 3 Verification | yashdiwan12 | AshwaniArya2005 |
+> | 4 Frontend | iamsarik | cyborgwastaken |
+> | 5 Data, Evaluation and Demo | dhruvt293 | iamsarik |
+>
+> Role to ticket mapping: 1 = T03 T06 T14 T24 T27; 2 = T02 T07 T08 T13 T23; 3 = T05 T09 T12 T15 T18;
+> 4 = T04 T11 T17 T20 T21 T22 T26; 5 = T01 T10 T16 T19 T25 T28.
 
 ## Roles (5 people)
 

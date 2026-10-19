@@ -168,9 +168,23 @@ cyborgwastaken reviews every PR. The checks are:
 
 Reviewing is also a good way to learn. Read other people's PRs even if you are not the reviewer.
 
-## 9. Your personal docs
+## 9. Your docs
 
-- [AshwaniArya2005](ashwaniarya2005.md): test data and benchmark
-- [dhruvt293](dhruvt293.md): dashboard, documentation, demo
-- [iamsarik](iamsarik.md): critic, resolver, evidence graph, trust report
-- [yashdiwan12](yashdiwan12.md): the website
+Roles (what each role means and its tickets):
+- [Role 1: Backend and Database](role-1-backend-database.md)
+- [Role 2: Retrieval and AI Pipeline](role-2-retrieval-ai.md)
+- [Role 3: Verification](role-3-verification.md)
+- [Role 4: Frontend](role-4-frontend.md)
+- [Role 5: Data, Evaluation and Demo](role-5-data-eval-demo.md)
+
+Who does what (primary and secondary):
+
+| Role | Primary | Secondary |
+|---|---|---|
+| 1 Backend and Database | cyborgwastaken | yashdiwan12 |
+| 2 Retrieval and AI Pipeline | AshwaniArya2005 | cyborgwastaken, yashdiwan12 |
+| 3 Verification | yashdiwan12 | AshwaniArya2005 |
+| 4 Frontend | iamsarik | cyborgwastaken |
+| 5 Data, Evaluation and Demo | dhruvt293 | iamsarik |
+
+Personal pages: [cyborgwastaken](cyborgwastaken.md), [AshwaniArya2005](ashwaniarya2005.md), [yashdiwan12](yashdiwan12.md), [iamsarik](iamsarik.md), [dhruvt293](dhruvt293.md).
