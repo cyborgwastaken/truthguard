@@ -124,7 +124,7 @@ git push -u origin t01-corpus
   - ...
   ```
   `Closes #2` links the PR to the issue (use your ticket's issue number, shown in the issue URL).
-- **Reviewer:** add `cyborgwastaken`.
+- **Reviewer:** add `cyborgwastaken`. The PR form is pre-filled with a template; fill it in and tick the checklist.
 
 **Step 9: Move the card to "In review".**
 
@@ -139,7 +139,7 @@ Start the next ticket from Step 1.
 
 ## 6. Rules that keep us out of trouble
 
-1. **Never push to `main`.** Always use a branch and a PR.
+1. **Never push to `main`.** It is protected: GitHub rejects direct pushes from you, and a PR needs approval from cyborgwastaken before it can merge. PRs are merged with "squash", so `main` gets one commit per ticket, and your branch is deleted automatically afterwards.
 2. **One ticket = one branch = one PR.** Small PRs get reviewed faster.
 3. **Pull before you branch** (`git pull` on `main`).
 4. **Do not commit secrets.** API keys, passwords, `.env` files never go in git.
