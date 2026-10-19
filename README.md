@@ -11,6 +11,7 @@ Multi-agent document verification: sourced answers, contradiction and staleness 
 
 | Doc | What it is |
 |---|---|
+| [DOCS/setup.md](DOCS/setup.md) | Install and run everything on your computer |
 | [DOCS/instructions.md](DOCS/instructions.md) | Entry point and rules for AI coding agents |
 | [DOCS/team/README.md](DOCS/team/README.md) | How we work: board, branches, pull requests, who does what |
 | [DOCS/team/](DOCS/team/) | One page per person, and one doc per role with step-by-step ticket instructions |
@@ -31,10 +32,12 @@ Project board: GitHub -> cyborgwastaken -> Projects -> Virtusa TruthGuard.
 
 ## Dev setup
 
+Full step-by-step guide: [DOCS/setup.md](DOCS/setup.md). The short version:
+
 ```bash
-python3 -m venv .venv && . .venv/bin/activate
-cd BACKEND && pip install -r requirements.txt   # also installs ../AGENT in editable mode
-(cd ../AGENT && python -m pytest)
-python -m pytest
-uvicorn app.main:app --reload
+python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip
+(cd BACKEND && pip install -r requirements.txt)          # also installs ../AGENT in editable mode
+docker compose -f OPS/docker-compose.yml up -d           # Postgres on port 5433
+(cd BACKEND && alembic upgrade head && python -m pytest)
+(cd BACKEND && uvicorn app.main:app --reload)
 ```
