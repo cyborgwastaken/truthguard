@@ -2,6 +2,24 @@
 
 Multi-agent document verification: sourced answers, contradiction and staleness detection, honest abstention.
 
+> **AI coding agents: stop and read [DOCS/instructions.md](DOCS/instructions.md) before doing anything else.**
+> It tells you to ask the human who they are and which ticket they are working on, which docs to read first, and the rules for this repo.
+>
+> **New team member (human)?** Start with [DOCS/team/README.md](DOCS/team/README.md).
+
+## Documentation index
+
+| Doc | What it is |
+|---|---|
+| [DOCS/instructions.md](DOCS/instructions.md) | Entry point and rules for AI coding agents |
+| [DOCS/team/README.md](DOCS/team/README.md) | How we work: board, branches, pull requests, who does what |
+| [DOCS/team/](DOCS/team/) | One page per person, and one doc per role with step-by-step ticket instructions |
+| [DOCS/backlog.md](DOCS/backlog.md) | All tickets, waves, dependencies |
+| [DOCS/truthguard_intital_roadmap.md](DOCS/truthguard_intital_roadmap.md) | MVP plan: architecture, data contracts, demo scenarios |
+| [DOCS/truthguard_expansion_roadmap.md](DOCS/truthguard_expansion_roadmap.md) | Evidence graph, trust reports, benchmark lab, later features |
+
+Project board: GitHub -> cyborgwastaken -> Projects -> Virtusa TruthGuard.
+
 | Folder | Purpose |
 |---|---|
 | `FRONTEND/` | React UI (chat, evidence graph, trust report, benchmark dashboard) |
