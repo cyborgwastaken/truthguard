@@ -29,6 +29,7 @@ Run these from the repo root (`truthguard/`).
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
+pip install --upgrade pip          # old pip versions can fail on the next command
 cd BACKEND
 pip install -r requirements.txt    # must be run from inside BACKEND/
 ```
@@ -154,7 +155,8 @@ Never edit a migration that has already been merged; add a new one.
 | `connection refused` when running `alembic` or tests | The database is not up. Run step 4 and check `docker compose ... ps` shows `healthy`. |
 | `password authentication failed` | You have a different Postgres on the same port, or an old volume with different credentials. Use the reset in step 11. |
 | `ModuleNotFoundError: truthguard_agent` or `app` | The venv is not active, or `pip install -r requirements.txt` was run outside `BACKEND/`. Redo step 3. |
-| `ERROR: ../AGENT is not a valid editable requirement` | Same cause: run `pip install -r requirements.txt` from inside `BACKEND/`. |
+| `ERROR: ../AGENT is not a valid editable requirement` | Run `pip install -r requirements.txt` from inside `BACKEND/`. |
+| `File "setup.py" or "setup.cfg" not found` | Old pip. Run `pip install --upgrade pip`, then retry. |
 | `command not found: alembic` / `pytest` | Activate the venv: `source .venv/bin/activate`. |
 | `Can't locate revision` | Your database was migrated by a different branch. Use the reset in step 11. |
 | Database tests show `SKIPPED` | Database not running or tables missing. Follow the message in the skip reason. |
