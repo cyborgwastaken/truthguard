@@ -2,6 +2,10 @@
 
 Source of truth for the GitHub Project board. Each row becomes one issue.
 
+> The tables below are the original role plan. Final owners are in `OPS/github/create_backlog.py`
+> and on the board: cyborgwastaken takes P1+P2 and reviews every ticket; iamsarik P3; yashdiwan12 P4;
+> AshwaniArya2005 corpus/benchmark (T01, T10, T16, T19); dhruvt293 dashboard/docs/demo (T22, T25-T28).
+
 ## Roles (5 people)
 
 | Role | Owns |
