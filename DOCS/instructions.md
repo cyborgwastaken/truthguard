@@ -37,7 +37,7 @@ Then:
 
 The first ticket of each person (all ready now): cyborgwastaken T03, AshwaniArya2005 T02, yashdiwan12 T05, iamsarik T04, dhruvt293 T01.
 
-The ownership table above could be stale. The board and the issue (labels, assignee, body) are the source of truth. If they disagree with this file, tell the human and ask the project lead.
+`DOCS/progress.md` is generated from the board and can lag by a few hours; the board wins. The ownership table above could be stale too. The board and the issue (labels, assignee, body) are the source of truth. If they disagree with this file, tell the human and ask the project lead.
 
 ## Step 1: Read the docs, in this order (do all of it)
 
@@ -46,7 +46,7 @@ Build real context before touching code. Read these in full, not just the headin
 1. `README.md` (repo map and dev setup)
 2. `DOCS/truthguard_intital_roadmap.md` (what the product is: architecture, data contracts, the three required demo scenarios, definition of done)
 3. `DOCS/truthguard_expansion_roadmap.md` (evidence graph, trust reports, benchmark lab; later features; engineering requirements)
-4. `DOCS/backlog.md` (all tickets, waves, dependencies)
+4. `DOCS/backlog.md` (all tickets, waves, dependencies) and `DOCS/progress.md` (what is done, in flight and blocked right now, plus decisions and their reasons)
 5. `DOCS/team/README.md` (the exact workflow for branches, PRs and the board)
 6. The human's personal page in `DOCS/team/` (for example `DOCS/team/yashdiwan12.md`) and the **role doc** for the ticket they chose. The role doc has step-by-step instructions for that ticket.
 7. The code the ticket touches. Always read `AGENT/truthguard_agent/schemas/` (the shared data models) and the tests next to it.

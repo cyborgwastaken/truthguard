@@ -95,13 +95,18 @@ When the checklist passes:
    ```bash
    OPS/github/move_card.sh 4 done      # issue number, then: backlog | ready | in-progress | in-review | done
    ```
-6. **Unblock the next tickets.** Open `DOCS/backlog.md` and find tickets whose "Depends on" are now all Done. Move them to Ready:
+6. **Refresh the progress page** (after the card is in Done):
+   ```bash
+   python3 OPS/github/update_progress.py
+   ```
+   It rewrites the status section of `DOCS/progress.md` from the board and lists any ticket that is unblocked but still in Backlog. Add a line to the "Decisions and notes" section if you decided something worth remembering. Commit the file in a small PR (`chore: update progress`).
+7. **Unblock the next tickets.** Open `DOCS/backlog.md` and find tickets whose "Depends on" are now all Done. Move them to Ready:
    ```bash
    OPS/github/move_card.sh 7 ready
    ```
    Then tell the owner (comment on the issue or message them). Example: when T02 and T03 are both Done, T06 and T07 become Ready.
-7. **Tell the author** it is merged and what to do next: `git checkout main && git pull`, then start the next ticket.
-8. Pull on your machine too: `git checkout main && git pull`.
+8. **Tell the author** it is merged and what to do next: `git checkout main && git pull`, then start the next ticket.
+9. Pull on your machine too: `git checkout main && git pull`.
 
 ### Your own PRs
 
