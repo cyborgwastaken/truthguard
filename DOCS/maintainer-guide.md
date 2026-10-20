@@ -177,6 +177,7 @@ Who can see the token: any collaborator with write access can in principle read 
 |---|---|
 | Runs fail with "PROJECT_TOKEN is not set" | The secret is missing; step 3 |
 | Runs fail with a permission or 401 error from `gh project` | Token expired or lacks the `project` scope; create a new one and set the secret again |
+| Runs fail with "unknown owner type" | `gh` cannot look the project owner up with a `project`-only token. The script uses `--owner @me` to avoid this. If it still happens, edit the token on the tokens page and also tick `read:org` (read-only) |
 | Card moved to In review and then back | Another automation: check the board's **Workflows** page (step 4) |
 | A card did not move | Open the run in the **Actions** tab (the step summary lists every change). The hourly repair pass will usually fix it; or **Run workflow** now |
 | The PR has no `Closes #N` | Edit the PR description; the next hourly pass moves the card, or run it by hand |

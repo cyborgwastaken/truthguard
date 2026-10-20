@@ -32,7 +32,9 @@ import sys
 from typing import Dict, List, Optional, Set
 
 REPO = "cyborgwastaken/truthguard"
-OWNER = "cyborgwastaken"
+# "@me" = the user the token belongs to. Looking the owner up by name also queries organizations, which
+# fails with "unknown owner type" for a token that only has the `project` scope.
+OWNER = "@me"
 PROJECT = "3"
 STATUS_FIELD = "PVTSSF_lAHOCDU-7c4BnxxizhmUzuQ"
 OPTIONS = {
