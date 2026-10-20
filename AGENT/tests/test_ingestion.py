@@ -72,8 +72,27 @@ def test_one_line_document_is_one_chunk():
         ("Hi. Averyveryverylongsentence.", 10, [("Hi.", 0, 3), ("Averyveryverylongsentence.", 4, 30)]),
         # a single newline stays inside the paragraph
         ("Line one\nline two.\n\nNext.", 100, [("Line one\nline two.\n\nNext.", 0, 25)]),
+        # a paragraph is not split at a single newline
+        ("Line one\nline two.\n\nNext.", 15, [("Line one\nline two.", 0, 18), ("Next.", 20, 25)]),
+        # a dot inside a token (3.14) is not a sentence end
+        ("Version 3.14 applies. Next.", 15, [("Version 3.14 applies.", 0, 21), ("Next.", 22, 27)]),
+        # indentation and non-breaking spaces are excluded from chunk text; a blank-looking paragraph is skipped
+        (
+            "  Indented.\n\n \n\nTail ",
+            11,
+            [("Indented.", 2, 11), ("Tail", 16, 20)],
+        ),
     ],
-    ids=["merge-paragraphs", "split-and-merge-sentences", "sentence-terminators", "long-sentence-whole", "single-newline"],
+    ids=[
+        "merge-paragraphs",
+        "split-and-merge-sentences",
+        "sentence-terminators",
+        "long-sentence-whole",
+        "single-newline-merged",
+        "single-newline-not-split",
+        "dot-inside-token",
+        "indent-and-nbsp-trimmed",
+    ],
 )
 def test_chunk_boundaries_and_offsets(content, max_chars, expected):
     chunks = chunk_document(make_doc(content), max_chars=max_chars)
