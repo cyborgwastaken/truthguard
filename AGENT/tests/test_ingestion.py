@@ -12,8 +12,23 @@ from truthguard_agent.ingestion import normalize_text
         ("a\n  \n\t\n\nb", "a\n\nb"),
         ("a\n\nb", "a\n\nb"),
         ("  indented  words\nnext line", "  indented  words\nnext line"),
+        ("a \nb \n \nc", "a \nb \n \nc"),
+        ("", ""),
+        ("\n\na\n\n", "\n\na\n\n"),
+        ("\n\n\n", "\n\n"),
     ],
-    ids=["line-endings", "trailing-whitespace", "blank-run", "whitespace-only-lines", "single-blank-kept", "wording-kept"],
+    ids=[
+        "line-endings",
+        "trailing-whitespace",
+        "blank-run",
+        "whitespace-only-lines",
+        "single-blank-kept",
+        "wording-kept",
+        "unicode-spaces-kept",
+        "empty",
+        "edge-blank-lines-kept",
+        "blank-only-collapsed",
+    ],
 )
 def test_normalize_text(raw, expected):
     assert normalize_text(raw) == expected
