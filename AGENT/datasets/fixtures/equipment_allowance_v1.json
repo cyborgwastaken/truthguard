@@ -1,0 +1,11 @@
+{
+  "document_id": "equipment_allowance_v1",
+  "title": "Employee Equipment Allowance Policy",
+  "version": "1",
+  "created_at": "2025-09-01",
+  "effective_date": "2025-09-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "IT Department",
+  "content": "All full-time employees at Acme Corp are entitled to an equipment allowance of $1,500 upon joining the company. This allowance may be used to purchase a laptop, monitor, keyboard, mouse, or headset from the approved vendor list. Unused allowance does not carry over after 90 days. Contract employees receive a reduced allowance of $500 and are limited to a keyboard and mouse. The company retains ownership of all purchased equipment. Equipment must be returned upon separation from the company. Replacement equipment due to normal wear is available after 36 months of service."
+}

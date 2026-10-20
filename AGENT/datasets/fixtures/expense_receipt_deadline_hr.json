@@ -1,0 +1,11 @@
+{
+  "document_id": "expense_receipt_deadline_hr",
+  "title": "Expense Receipt Submission Deadline — HR Handbook",
+  "version": "3",
+  "created_at": "2026-03-01",
+  "effective_date": "2026-03-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "HR Department",
+  "content": "According to the Acme Corp Employee HR Handbook (3rd edition), expense reimbursement claims must be submitted within 30 days of the transaction date. Receipts must be attached to all claims above $25. Claims between $0 and $25 may be submitted without receipts but require a written description of the expense. The 30-day window was established to provide employees sufficient time to gather documentation while travelling or on extended assignments. HR Department is the authoritative source for employee-facing policy in all matters of reimbursement timing. This handbook takes precedence in matters of employee procedure."
+}

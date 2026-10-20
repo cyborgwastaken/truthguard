@@ -1,0 +1,11 @@
+{
+  "document_id": "equipment_allowance_v2",
+  "title": "Employee Equipment Allowance Policy (Updated)",
+  "version": "2",
+  "created_at": "2026-06-01",
+  "effective_date": "2026-07-01",
+  "authority_level": "official",
+  "supersedes_document_id": "equipment_allowance_v1",
+  "source": "IT Department",
+  "content": "Effective July 1, 2026, this document supersedes the Employee Equipment Allowance Policy v1. All full-time employees at Acme Corp are now entitled to an equipment allowance of $2,000 upon joining. This increase reflects updated market costs. The allowance may be used on any item from the approved vendor list including laptop, monitor, keyboard, mouse, headset, or webcam. Unused allowance expires after 90 days. Contract employees retain the $500 allowance. Ownership and return obligations remain unchanged. Replacement equipment remains available after 36 months of service."
+}

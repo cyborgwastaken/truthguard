@@ -1,0 +1,11 @@
+{
+  "document_id": "remote_policy_v1",
+  "title": "Remote Work Policy",
+  "version": "1",
+  "created_at": "2026-01-10",
+  "effective_date": "2026-01-15",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "HR Department",
+  "content": "Employees of Acme Corp are permitted to work remotely up to five days per week. All remote work must be conducted from a suitable home office environment. Employees must be reachable during core hours of 10:00 to 16:00 in their local time zone. Equipment necessary for remote work, including a laptop and peripherals, will be provided by the company. Employees working remotely must attend all mandatory team meetings via video call. Any employee wishing to work from a co-working space must receive prior approval from their direct manager. Remote work privileges may be revoked for performance issues at the manager's discretion."
+}

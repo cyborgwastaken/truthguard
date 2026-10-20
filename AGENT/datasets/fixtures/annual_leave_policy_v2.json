@@ -1,0 +1,11 @@
+{
+  "document_id": "annual_leave_policy_v2",
+  "title": "Annual Leave Policy (Revised)",
+  "version": "2",
+  "created_at": "2026-01-05",
+  "effective_date": "2026-01-01",
+  "authority_level": "official",
+  "supersedes_document_id": "annual_leave_policy_v1",
+  "source": "HR Department",
+  "content": "Effective January 1, 2026, this document supersedes the Annual Leave Policy v1. Full-time employees at Acme Corp now accrue 25 days of paid annual leave per calendar year, reflecting the company's updated benefits package. Leave accrues at a rate of 2.08 days per month. The two-week advance notice requirement for leave exceeding three consecutive days remains unchanged. The carry-over limit is increased to 10 days. Leave beyond the 10-day carry-over limit is forfeited at year end. The Q4 blackout period restrictions are removed under this revision. Leave requests continue to require manager approval."
+}

@@ -1,0 +1,11 @@
+{
+  "document_id": "remote_work_managers",
+  "title": "Remote Work Policy — Managers and Team Leads",
+  "version": "1",
+  "created_at": "2026-04-15",
+  "effective_date": "2026-05-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "HR Department",
+  "content": "Managers and team leads at Acme Corp may work remotely up to two days per week. This reduced allowance reflects the need for managers to be present for direct reports, conduct performance check-ins, and handle escalations in person. Managers working remotely must ensure team meetings are not affected and must be available for urgent escalations within 30 minutes. Any exception to this two-day limit requires approval from the relevant VP. This policy applies specifically to anyone with direct reports; it does not change the entitlements of individual contributors as set out in the Remote Work Policy."
+}

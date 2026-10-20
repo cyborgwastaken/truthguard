@@ -1,0 +1,11 @@
+{
+  "document_id": "annual_leave_policy_v1",
+  "title": "Annual Leave Policy",
+  "version": "1",
+  "created_at": "2025-06-01",
+  "effective_date": "2025-06-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "HR Department",
+  "content": "Full-time employees at Acme Corp accrue 20 days of paid annual leave per calendar year. Leave accrues at a rate of 1.67 days per month. Employees must give at least two weeks notice before taking leave exceeding three consecutive days. A maximum of 5 unused leave days may be carried over to the following calendar year. Any unused leave beyond 5 days is forfeited at year end. Leave requests must be approved by the direct manager. Leave cannot be taken during the company's designated blackout periods in Q4."
+}

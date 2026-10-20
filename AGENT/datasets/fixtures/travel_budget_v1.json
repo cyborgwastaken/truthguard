@@ -1,0 +1,11 @@
+{
+  "document_id": "travel_budget_v1",
+  "title": "Business Travel Budget Guidelines",
+  "version": "1",
+  "created_at": "2025-11-01",
+  "effective_date": "2025-11-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "Finance Department",
+  "content": "Acme Corp will reimburse business travel expenses up to a daily total of $250 per day for domestic travel and $400 per day for international travel. Accommodation must be booked through the company travel portal whenever possible. Economy class is required for flights under four hours. Business class may be approved for flights exceeding four hours, subject to VP-level approval. Meals are reimbursable up to $60 per day for domestic and $90 per day for international travel. Receipts must be submitted within 30 days of travel completion. Taxis and rideshares are reimbursable; personal vehicle mileage is reimbursed at the IRS standard rate."
+}
