@@ -11,21 +11,20 @@ The notes section at the bottom is written by hand: decisions, reasons and open 
 <!-- BEGIN GENERATED (OPS/github/update_progress.py) -->
 ## Status (generated 2026-10-20)
 
-**3 of 32 tickets done.** Done 3 · In review 1 · In progress 1 · Ready 1 · Backlog 26
+**6 of 32 tickets done.** Done 6 · In review 0 · In progress 1 · Ready 2 · Backlog 23
 
 ### Ready to start
 
-- #6 T05: Resolver rules design doc (@yashdiwan12)
+- #7 T06: POST/GET /documents (@cyborgwastaken)
+- #10 T09: Resolver engine (@yashdiwan12)
 
 ### In flight
 
-- #3 T02: Ingestion: normalize, chunk, hash (@AshwaniArya2005), in progress
-- #5 T04: Frontend scaffold (Vite + React + TS) (@cyborgwastaken), in review
+- #8 T07: Keyword/full-text retriever (@AshwaniArya2005), in progress
 
 ### Open pull requests
 
-- #37 T04: Frontend scaffold (Vite + React + TS) (@cyborgwastaken): review required
-- #36 T02 ingestion (@AshwaniArya2005): review required
+- none
 
 ### All tickets
 
@@ -35,17 +34,17 @@ The notes section at the bottom is written by hand: decisions, reasons and open 
 | T00 | #1 | Repo scaffold, shared schemas, /health | @cyborgwastaken | Done | - |
 | **Wave 1: Foundation** | | | | | |
 | T01 | #2 | Fictional corpus with labeled cases | @dhruvt293 | Done | - |
-| T02 | #3 | Ingestion: normalize, chunk, hash | @AshwaniArya2005 | In progress | - |
+| T02 | #3 | Ingestion: normalize, chunk, hash | @AshwaniArya2005 | Done | - |
 | T03 | #4 | Postgres, models and migrations | @cyborgwastaken | Done | - |
-| T04 | #5 | Frontend scaffold (Vite + React + TS) | @cyborgwastaken | In review | - |
-| T05 | #6 | Resolver rules design doc | @yashdiwan12 | Ready | - |
+| T04 | #5 | Frontend scaffold (Vite + React + TS) | @cyborgwastaken | Done | - |
+| T05 | #6 | Resolver rules design doc | @yashdiwan12 | Done | - |
 | **Wave 2: Core pipeline** | | | | | |
-| T06 | #7 | POST/GET /documents | @cyborgwastaken | Backlog | T02 |
-| T07 | #8 | Keyword/full-text retriever | @AshwaniArya2005 | Backlog | T02 |
+| T06 | #7 | POST/GET /documents | @cyborgwastaken | Ready | - |
+| T07 | #8 | Keyword/full-text retriever | @AshwaniArya2005 | In progress | - |
 | T08 | #9 | Synthesizer with claim-level citations | @AshwaniArya2005 | Backlog | T07 |
-| T09 | #10 | Resolver engine | @yashdiwan12 | Backlog | T05 |
+| T09 | #10 | Resolver engine | @yashdiwan12 | Ready | - |
 | T10 | #11 | Baseline RAG | @dhruvt293 | Backlog | T07 |
-| T11 | #12 | Chat UI and document list/upload | @iamsarik | Backlog | T04, T06 |
+| T11 | #12 | Chat UI and document list/upload | @iamsarik | Backlog | T06 |
 | **Wave 3: Verification** | | | | | |
 | T12 | #13 | Critic agent | @yashdiwan12 | Backlog | T08 |
 | T13 | #14 | Orchestrator | @AshwaniArya2005 | Backlog | T08, T09, T12 |
