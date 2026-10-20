@@ -1,5 +1,5 @@
 """The language model behind a small interface, so agents never depend on one provider and tests never
-call a paid API. A real client (Gemini) implements LLMClient; FakeLLM is for tests."""
+call a paid or quota-limited API. A real client (Groq) implements LLMClient; FakeLLM is for tests."""
 from __future__ import annotations
 
 import os
@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Protocol, Union
 
 
 class LLMError(Exception):
-    """A model call failed or gave nothing usable: API error, timeout, blocked prompt, cut-off reply."""
+    """A model call failed or gave nothing usable: API error, timeout, cut-off or empty reply."""
 
 
 class LLMClient(Protocol):
@@ -22,22 +22,13 @@ class LLMClient(Protocol):
         ...
 
 
-def _sdk():
-    """The google-genai SDK, imported when a Gemini client is first used, so the rest of the package
-    (and every test with FakeLLM) does not need it."""
-    from google import genai
-    from google.genai import errors, types
+class GroqLLM:
+    """LLMClient for the Groq API (groq SDK).
 
-    return genai, errors, types
-
-
-class GeminiLLM:
-    """LLMClient for the Gemini API (google-genai SDK).
-
-    The key comes from api_key, else the GEMINI_API_KEY environment variable (else the SDK's own
-    GOOGLE_API_KEY); it is never logged or stored here. Always the Gemini API, never Vertex AI. The model
-    name is passed in (AGENT cannot read BACKEND's settings). Free-tier prompts are used by Google to
-    improve its products, so send it only the fictional fixtures, never real documents.
+    The key comes from api_key, else the GROQ_API_KEY environment variable; it is never logged or stored
+    here. The model name is passed in (AGENT cannot read BACKEND's settings). The SDK is told not to
+    retry, so one complete() call is one request against the rate limit. Groq says it does not train on
+    customer data, but send it only the fictional fixtures until the team has agreed otherwise.
     """
 
     def __init__(
@@ -51,52 +42,49 @@ class GeminiLLM:
         self.model_name = model
         self._max_output_tokens = max_output_tokens
         if client is None:
-            genai, _, types = _sdk()
+            import groq
+
             try:
-                client = genai.Client(
-                    api_key=api_key or os.environ.get("GEMINI_API_KEY"),
-                    vertexai=False,
-                    http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000)),
+                client = groq.Groq(
+                    api_key=api_key or os.environ.get("GROQ_API_KEY"), timeout=timeout_seconds, max_retries=0
                 )
-            except Exception as error:  # a missing key raises ValueError; keep the one error type
-                message = "Could not create the Gemini client (is GEMINI_API_KEY set?): %s" % error
-                raise LLMError(message) from error
+            except Exception as error:  # a missing key raises GroqError; keep the one error type
+                raise LLMError("Could not create the Groq client (is GROQ_API_KEY set?): %s" % error) from error
         self._client = client
 
     def complete(self, system: str, user: str, json_output: bool = False) -> str:
-        _, errors, types = _sdk()
-        config = types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=self._max_output_tokens,
-            response_mime_type="application/json" if json_output else None,
-            automatic_continuation=False,  # one complete() call is one request against the quota
-        )
+        options: Dict[str, Any] = {"max_completion_tokens": self._max_output_tokens}
+        if json_output:
+            options["response_format"] = {"type": "json_object"}
         try:
-            response = self._client.models.generate_content(
-                model=self.model_name, contents=user, config=config
+            response = self._client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                **options,
             )
-        except errors.APIError as error:
-            status, detail = error.status or "(no status)", error.message or "(no message)"
-            raise LLMError("Gemini API error %s %s: %s" % (error.code, status, detail)) from error
-        except Exception as error:  # timeouts, connection errors, anything else the SDK raises
-            raise LLMError("Gemini call failed (%s): %s" % (type(error).__name__, error)) from error
-        return self._text_of(response, types)
+        except Exception as error:  # API errors, timeouts, lost connections, anything else the SDK raises
+            raise LLMError(self._describe(error)) from error
+        return self._text_of(response)
 
     @staticmethod
-    def _text_of(response: Any, types: Any) -> str:
-        block = response.prompt_feedback.block_reason if response.prompt_feedback else None
-        if block is not None and block != types.BlockedReason.BLOCKED_REASON_UNSPECIFIED:
-            raise LLMError("Gemini blocked the prompt (%s)" % block.name)
-        if not response.candidates:
-            raise LLMError("Gemini returned no candidate")
-        reason = response.candidates[0].finish_reason
-        if reason == types.FinishReason.MAX_TOKENS:
-            raise LLMError("Gemini's reply was cut off by the output limit")
-        if reason not in (None, types.FinishReason.STOP, types.FinishReason.FINISH_REASON_UNSPECIFIED):
-            raise LLMError("Gemini stopped early: %s" % reason.name)
-        text = response.text
+    def _describe(error: Exception) -> str:
+        status = getattr(error, "status_code", None)
+        if status is not None:
+            return "Groq API error %s: %s" % (status, getattr(error, "message", None) or "(no message)")
+        return "Groq call failed (%s): %s" % (type(error).__name__, error)
+
+    @staticmethod
+    def _text_of(response: Any) -> str:
+        if not response.choices:
+            raise LLMError("Groq returned no choice")
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            raise LLMError("Groq's reply was cut off by the output limit")
+        if choice.finish_reason != "stop":
+            raise LLMError("Groq stopped early: %s" % choice.finish_reason)
+        text = choice.message.content
         if not text or not text.strip():
-            raise LLMError("Gemini returned an empty reply")
+            raise LLMError("Groq returned an empty reply")
         return text
 
 
