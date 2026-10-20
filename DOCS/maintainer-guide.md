@@ -66,7 +66,7 @@ Run anything else the PR says to check (the "How to check it" section). When you
 - [ ] Failures are visible (explicit status, no silent success).
 - [ ] Retrieved document text is treated as untrusted data.
 - [ ] No secrets, `.env`, `.venv`, `node_modules`, or unrelated files.
-- [ ] Python 3.9 compatible (`Optional[X]`, no `X | None` at runtime).
+- [ ] Works on Python 3.12 or newer (the `requires-python` in `AGENT/pyproject.toml`).
 - [ ] The change stays inside the ticket.
 - [ ] No overclaiming (no trust score, no "better than baseline" without measurements).
 - [ ] Commit messages start with the ticket id and have no AI co-author line.

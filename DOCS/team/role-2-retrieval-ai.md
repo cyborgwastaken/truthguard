@@ -80,7 +80,7 @@ class PassageStore(Protocol):
 
 **Steps:**
 1. Branch `t08-synthesizer`. Wait for T07 to be Done.
-2. Create `llm.py` with a tiny `LLMClient` interface (`complete(system, user) -> str`), a real implementation using the Anthropic SDK (model name from `settings.llm_model`, key from the `ANTHROPIC_API_KEY` environment variable, **never in git**), and a `FakeLLM` for tests that returns canned text.
+2. Create `llm.py` with a tiny `LLMClient` interface (`complete(system, user, json_output=False) -> str`; every failure becomes `LLMError`), a real implementation `GroqLLM` for the Groq API (model name passed in from configuration, `TRUTHGUARD_LLM_MODEL`; key from the `GROQ_API_KEY` environment variable, **never in git**), and a `FakeLLM` for tests that returns canned text. Only the fictional fixtures go through the real API.
 3. Write `synthesize(question, passages, llm) -> SynthesisResult`. The prompt asks the model for JSON: a list of atomic claims, each with `citation_chunk_ids`, plus caveats.
 4. Rules to enforce in the prompt **and** in code:
    - Use only the provided passages for facts.

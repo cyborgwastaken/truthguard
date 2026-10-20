@@ -7,7 +7,7 @@ Follow this once to get TruthGuard running on your computer. It takes about 15 m
 | Tool | Version | Check with | Get it |
 |---|---|---|---|
 | Git | any recent | `git --version` | https://git-scm.com |
-| Python | 3.9 or newer | `python3 --version` | https://www.python.org |
+| Python | 3.12 or newer | `python3.12 --version` | https://www.python.org (macOS: `brew install python@3.12`) |
 | Docker Desktop | any recent | `docker --version` | https://www.docker.com/products/docker-desktop |
 | Node.js | 20.19 or newer (only for the frontend) | `node --version` | https://nodejs.org |
 
@@ -27,12 +27,14 @@ You need to be a collaborator on the repo. If the clone is refused, accept your 
 Run these from the repo root (`truthguard/`).
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv            # Windows: py -3.12 -m venv .venv
 source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install --upgrade pip          # old pip versions can fail on the next command
 cd BACKEND
 pip install -r requirements.txt    # must be run from inside BACKEND/
 ```
+
+Use `python3.12` (or newer), **not** plain `python3`: on many Macs `python3` is an older version, and the install then fails with "requires a different Python". **Already have a `.venv` from an older Python?** Delete it and create it again (`rm -rf .venv`, then the commands above): an existing environment keeps its old Python.
 
 Your terminal prompt now starts with `(.venv)`. **Every new terminal needs `source .venv/bin/activate` again** (run from the repo root).
 
@@ -129,7 +131,7 @@ TRUTHGUARD_DATABASE_URL=postgresql+psycopg://truthguard:truthguard@localhost:543
 TRUTHGUARD_CORS_ORIGINS=http://localhost:5173
 ```
 
-The language-model key (needed from ticket T08 on) is **not** read from `.env`. Set it in your terminal before starting the backend: `export ANTHROPIC_API_KEY=your-key-here` (Windows PowerShell: `$env:ANTHROPIC_API_KEY="your-key-here"`). Never put it in a file that is committed.
+The language-model key (needed from ticket T08 on) is **not** read from `.env`. Set it in your terminal before starting the backend: `export GROQ_API_KEY=your-key-here` (Windows PowerShell: `$env:GROQ_API_KEY="your-key-here"`). Never put it in a file that is committed.
 
 To use a different database port, start Docker with `TRUTHGUARD_DB_PORT=5440 docker compose -f OPS/docker-compose.yml up -d` and set the same port in `TRUTHGUARD_DATABASE_URL`.
 
@@ -165,6 +167,7 @@ Never edit a migration that has already been merged; add a new one.
 | `connection refused` when running `alembic` or tests | The database is not up. Run step 4 and check `docker compose ... ps` shows `healthy`. |
 | `password authentication failed` | You have a different Postgres on the same port, or an old volume with different credentials. Use the reset in step 11. |
 | `ModuleNotFoundError: truthguard_agent` or `app` | The venv is not active, or `pip install -r requirements.txt` was run outside `BACKEND/`. Redo step 3. |
+| `requires a different Python: 3.9.x not in '>=3.12'` (or similar) | Your `.venv` was made with an older Python. Install Python 3.12 or newer, delete `.venv` (`rm -rf .venv`), and redo step 3 using `python3.12 -m venv .venv`. |
 | `ERROR: ../AGENT is not a valid editable requirement` | Run `pip install -r requirements.txt` from inside `BACKEND/`. |
 | `File "setup.py" or "setup.cfg" not found` | Old pip. Run `pip install --upgrade pip`, then retry. |
 | `command not found: alembic` / `pytest` | Activate the venv: `source .venv/bin/activate`. |

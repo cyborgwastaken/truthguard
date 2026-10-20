@@ -36,7 +36,7 @@ Project board: GitHub -> cyborgwastaken -> Projects -> Virtusa TruthGuard.
 Full step-by-step guide: [DOCS/setup.md](DOCS/setup.md). The short version:
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip
+python3.12 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip   # Python 3.12+ (see DOCS/setup.md)
 (cd BACKEND && pip install -r requirements.txt)          # also installs ../AGENT in editable mode
 docker compose -f OPS/docker-compose.yml up -d           # Postgres on port 5433
 (cd BACKEND && alembic upgrade head && python -m pytest)
