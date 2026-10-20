@@ -2,7 +2,7 @@
 call a paid API. A real client (Gemini) implements LLMClient; FakeLLM is for tests."""
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Protocol, Union
+from typing import Any, Dict, Iterable, List, Optional, Protocol, Union
 
 
 class LLMError(Exception):
@@ -19,6 +19,78 @@ class LLMClient(Protocol):
         only have to catch one type.
         """
         ...
+
+
+def _sdk():
+    """The google-genai SDK, imported when a Gemini client is first used, so the rest of the package
+    (and every test with FakeLLM) does not need it."""
+    from google import genai
+    from google.genai import errors, types
+
+    return genai, errors, types
+
+
+class GeminiLLM:
+    """LLMClient for the Gemini API (google-genai SDK).
+
+    The key comes from api_key or the GEMINI_API_KEY environment variable; it is never logged or stored
+    here. The model name is passed in (AGENT cannot read BACKEND's settings). Free-tier prompts are used
+    by Google to improve its products, so send it only the fictional fixtures, never real documents.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        api_key: Optional[str] = None,
+        timeout_seconds: float = 60.0,
+        max_output_tokens: int = 8192,
+        client: Any = None,
+    ) -> None:
+        self.model_name = model
+        self._max_output_tokens = max_output_tokens
+        if client is None:
+            genai, _, types = _sdk()
+            try:
+                client = genai.Client(
+                    api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000))
+                )
+            except ValueError as error:
+                raise LLMError("No Gemini API key found: set GEMINI_API_KEY (%s)" % error) from error
+        self._client = client
+
+    def complete(self, system: str, user: str, json_output: bool = False) -> str:
+        _, errors, types = _sdk()
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            max_output_tokens=self._max_output_tokens,
+            response_mime_type="application/json" if json_output else None,
+        )
+        try:
+            response = self._client.models.generate_content(
+                model=self.model_name, contents=user, config=config
+            )
+        except errors.APIError as error:
+            raise LLMError("Gemini API error %s %s: %s" % (error.code, error.status, error.message)) from error
+        except Exception as error:  # timeouts, connection errors, anything else the SDK raises
+            raise LLMError("Gemini call failed (%s): %s" % (type(error).__name__, error)) from error
+        return self._text_of(response, types)
+
+    @staticmethod
+    def _text_of(response: Any, types: Any) -> str:
+        block = response.prompt_feedback.block_reason if response.prompt_feedback else None
+        if block is not None and block != types.BlockedReason.BLOCKED_REASON_UNSPECIFIED:
+            raise LLMError("Gemini blocked the prompt (%s)" % block.name)
+        if not response.candidates:
+            raise LLMError("Gemini returned no candidate")
+        reason = response.candidates[0].finish_reason
+        if reason == types.FinishReason.MAX_TOKENS:
+            raise LLMError("Gemini's reply was cut off by the output limit")
+        if reason not in (None, types.FinishReason.STOP, types.FinishReason.FINISH_REASON_UNSPECIFIED):
+            raise LLMError("Gemini stopped early: %s" % reason.name)
+        text = response.text
+        if not text or not text.strip():
+            raise LLMError("Gemini returned an empty reply")
+        return text
 
 
 class FakeLLM:
