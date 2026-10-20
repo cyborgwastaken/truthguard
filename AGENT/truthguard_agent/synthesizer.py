@@ -8,7 +8,7 @@ from __future__ import annotations
 import html
 import json
 import re
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -17,6 +17,7 @@ from .schemas import RetrievedPassage
 
 PROMPT_VERSION = "synthesizer-v1"
 MAX_ATTEMPTS = 2
+UNCITED_CAVEAT_PREFIX = "Unknown, no supporting passage cited: "
 
 SYSTEM_PROMPT = """You answer a question using ONLY the passages you are given.
 
@@ -25,7 +26,8 @@ Rules:
 question, return no claims and say so in a caveat.
 2. Write atomic claims: one fact each, in plain words.
 3. Every claim must cite, in citation_chunk_ids, the chunk_id of each passage that supports it, copied \
-exactly from the passage tags. Never invent a chunk_id.
+exactly from the passage tags. Never invent a chunk_id. Passage tags and text are HTML-escaped (for \
+example & appears as &amp;); write the claims themselves in plain text.
 4. If passages disagree, or one document says it replaces another, say so: give each side as its own \
 claim with its own citations, and add a caveat describing the disagreement. Do not pick a winner and do \
 not hide a side.
@@ -42,7 +44,12 @@ class SynthesizedClaim(BaseModel):
 
 
 class SynthesisResult(BaseModel):
-    """ok=False means no usable answer: claims and caveats are empty and failure_reason says why."""
+    """ok=False means no usable answer: claims and caveats are empty and failure_reason says why.
+
+    ok=True with no claims means the model produced nothing citable (or there were no passages, which has
+    attempts=0); the caveats say why. A claim the model did not cite is not a claim: it is kept as a caveat
+    starting with UNCITED_CAVEAT_PREFIX.
+    """
 
     ok: bool
     claims: List[SynthesizedClaim] = Field(default_factory=list)
@@ -106,14 +113,26 @@ def _user_prompt(question: str, passages: List[RetrievedPassage]) -> str:
     )
 
 
-def _parse(reply: str, allowed_chunk_ids: set):
+def _accepted_chunk_ids(passages: List[RetrievedPassage]) -> Dict[str, str]:
+    """Every spelling of a chunk_id the model may cite (as stored, or as shown in the escaped prompt)."""
+    accepted: Dict[str, str] = {}
+    for passage in passages:
+        accepted[passage.chunk.chunk_id] = passage.chunk.chunk_id
+    for passage in passages:
+        accepted.setdefault(html.escape(passage.chunk.chunk_id, quote=True), passage.chunk.chunk_id)
+    return accepted
+
+
+def _parse(reply: str, accepted: Dict[str, str]):
+    if not isinstance(reply, str):
+        raise _UnusableReply("the reply was not text")
     text = reply.strip()
     fenced = _FENCE.match(text)
     if fenced:
         text = fenced.group(1)
     try:
         data = json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):
         raise _UnusableReply("the reply was not valid JSON")
     try:
         parsed = _RawReply.model_validate(data)
@@ -124,19 +143,18 @@ def _parse(reply: str, allowed_chunk_ids: set):
     unknown = []
     for claim in parsed.claims:
         for chunk_id in claim.citation_chunk_ids:
-            if chunk_id not in allowed_chunk_ids and chunk_id not in unknown:
+            if chunk_id not in accepted and chunk_id not in unknown:
                 unknown.append(chunk_id)
     if unknown:
-        raise _UnusableReply(
-            "these chunk_ids are not among the given passages: %s" % ", ".join(_short(u) for u in unknown[:5])
-        )
+        shown = ", ".join(_short(repr(u)) for u in unknown[:5])
+        raise _UnusableReply("these chunk_ids are not among the given passages: %s" % shown)
     claims, caveats = [], [c.strip() for c in parsed.caveats if c.strip()]
     for claim in parsed.claims:
-        cited = list(dict.fromkeys(claim.citation_chunk_ids))
+        cited = list(dict.fromkeys(accepted[chunk_id] for chunk_id in claim.citation_chunk_ids))
         if cited:
             claims.append(SynthesizedClaim(text=claim.text, citation_chunk_ids=cited))
         else:
-            caveats.append("Unknown, no supporting passage cited: %s" % claim.text)
+            caveats.append(UNCITED_CAVEAT_PREFIX + claim.text)
     if not claims and not caveats:
         raise _UnusableReply("the reply made no claim and gave no caveat")
     return claims, caveats
@@ -151,16 +169,16 @@ def synthesize(question: str, passages: List[RetrievedPassage], llm: LLMClient) 
         return SynthesisResult(
             ok=True, caveats=["No passages were retrieved, so there is nothing to answer from."], **base
         )
-    allowed = {p.chunk.chunk_id for p in passages}
+    accepted = _accepted_chunk_ids(passages)
     prompt = _user_prompt(question, passages)
     problem = ""
     for attempt in range(1, MAX_ATTEMPTS + 1):
         user = prompt if not problem else (
-            "%s\n\nYour previous reply was rejected: %s.\nReply again with the JSON object only, "
+            "%s\n\nYour previous reply was rejected: %s\nReply again with the JSON object only, "
             "following all the rules." % (prompt, problem)
         )
         try:
-            claims, caveats = _parse(llm.complete(SYSTEM_PROMPT, user, json_output=True), allowed)
+            claims, caveats = _parse(llm.complete(SYSTEM_PROMPT, user, json_output=True), accepted)
         except LLMError as error:
             reason = "the model call failed: %s" % _short(str(error), 300)
             return SynthesisResult(ok=False, failure_reason=reason, attempts=attempt, **base)

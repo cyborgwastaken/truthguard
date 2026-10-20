@@ -13,7 +13,11 @@ class LLMClient(Protocol):
     model_name: str
 
     def complete(self, system: str, user: str, json_output: bool = False) -> str:
-        """The model's reply as text. json_output asks for JSON only. Raises LLMError on any failure."""
+        """The model's reply as text. json_output asks for JSON only.
+
+        Any failure must surface as LLMError: an implementation wraps every other exception, so callers
+        only have to catch one type.
+        """
         ...
 
 
