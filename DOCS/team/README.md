@@ -40,9 +40,9 @@ Every ticket is a card. A card moves left to right:
 | Column | Meaning | Who moves it |
 |---|---|---|
 | **Backlog** | Not ready yet; it waits for other tickets | automatic order, see "Depends on" |
-| **Ready** | You can start now | cyborgwastaken moves it when its dependencies are Done |
-| **In progress** | You are working on it | **you**, when you start |
-| **In review** | Your PR is open and waiting for review | **you**, when you open the PR |
+| **Ready** | You can start now | **automatic**: when everything it depends on is merged (a comment on the issue tags you) |
+| **In progress** | You are working on it | **automatic**: when you first push a branch named `tNN-...` (a draft PR also counts) |
+| **In review** | Your PR is open and waiting for review | **automatic**: when you open the PR (it must say `Closes #N`); closing the PR without merging puts it back to In progress |
 | **Done** | Reviewed, merged, finished | cyborgwastaken, after merging |
 
 Each ticket (issue) tells you its **Depends on** list and a **Done when** line. If a ticket is still in Backlog, do not start it. The things it needs are not built yet.
@@ -76,7 +76,7 @@ Pretend you are working on ticket **T01** (issue #2). Replace names as needed.
 
 **Step 1: Check it is Ready.** Read the issue: description, Depends on, Done when. If anything is unclear, comment on the issue and ask before you start.
 
-**Step 2: Move the card to "In progress"** on the board.
+**Step 2: Nothing to do on the board.** The card moves to **In progress** by itself the first time you push your branch (step 7). That is why the branch name must start with the ticket number, like `t01-corpus`.
 
 **Step 3: Get the latest code and make a branch.**
 ```bash
@@ -126,11 +126,11 @@ git push -u origin t01-corpus
   `Closes #2` links the PR to the issue (use your ticket's issue number, shown in the issue URL).
 - **Reviewer:** add `cyborgwastaken`. The PR form is pre-filled with a template; fill it in and tick the checklist.
 
-**Step 9: Move the card to "In review".**
+**Step 9: Nothing to do on the board.** The card moves to **In review** by itself when you open the PR, as long as the description contains `Closes #<issue number>` (the template has it). A **draft** PR keeps it In progress until you click *Ready for review*. If a card did not move, tell cyborgwastaken.
 
 **Step 10: Handle review comments.** Reviewers will ask for changes. This is normal and not a criticism. Fix the code on the same branch, commit, and `git push`. The PR updates itself. Reply to each comment ("done" or your reasoning), then ask for a re-review.
 
-**Step 11: Merge.** Once approved, cyborgwastaken merges the PR and moves the card to Done. Then update your computer:
+**Step 11: Merge.** Once approved, cyborgwastaken merges the PR. The card moves to Done by itself, and the tickets that were waiting for yours move to Ready (their owners get a comment). Then update your computer:
 ```bash
 git checkout main
 git pull

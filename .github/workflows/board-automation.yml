@@ -1,0 +1,36 @@
+name: Board automation
+
+# Keeps the "Virtusa TruthGuard" board in step with branches and pull requests.
+# Rules and setup: DOCS/maintainer-guide.md ("Board automation"). Logic: OPS/github/board_sync.py.
+
+on:
+  create:                      # a branch is created: tNN-... moves ticket NN to In progress
+  pull_request_target:         # runs the workflow from main, never from the PR branch
+    types: [opened, reopened, ready_for_review, converted_to_draft, closed]
+  workflow_dispatch:           # manual run: repair pass
+  schedule:
+    - cron: "17 * * * *"       # hourly repair pass in case an event was missed
+
+concurrency:
+  group: board-automation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write                # comments on tickets that become Ready
+  pull-requests: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Always run the script from the default branch, whichever branch or PR triggered the run.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch || 'main' }}
+      - name: Update the board
+        run: python3 OPS/github/board_sync.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}

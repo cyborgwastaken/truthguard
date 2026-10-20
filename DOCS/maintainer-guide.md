@@ -91,7 +91,7 @@ When the checklist passes:
    gh pr merge 33 --squash
    ```
 4. The branch is deleted automatically and the issue closes because of `Closes #N`.
-5. **Update the board:** make sure the card is in **Done**. Check whether the board did it by itself the first time you merge. If not, run:
+5. **The board updates itself** (see "Board automation" below): the card moves to **Done** and every ticket whose dependencies are now all Done moves to **Ready**, with a comment tagging its owner. Check that it happened; if not, look at the latest run in the repo's **Actions** tab, and as a fallback:
    ```bash
    OPS/github/move_card.sh 4 done      # issue number, then: backlog | ready | in-progress | in-review | done
    ```
@@ -100,11 +100,7 @@ When the checklist passes:
    python3 OPS/github/update_progress.py
    ```
    It rewrites the status section of `DOCS/progress.md` from the board and lists any ticket that is unblocked but still in Backlog. Add a line to the "Decisions and notes" section if you decided something worth remembering. Commit the file in a small PR (`chore: update progress`).
-7. **Unblock the next tickets.** Open `DOCS/backlog.md` and find tickets whose "Depends on" are now all Done. Move them to Ready:
-   ```bash
-   OPS/github/move_card.sh 7 ready
-   ```
-   Then tell the owner (comment on the issue or message them). Example: when T02 and T03 are both Done, T06 and T07 become Ready.
+7. **Unblocking** is automatic (step 5). The progress page lists anything unblocked that is still in Backlog, which means the automation missed it; run the repair pass from the Actions tab (**Board automation -> Run workflow**).
 8. **Tell the author** it is merged and what to do next: `git checkout main && git pull`, then start the next ticket.
 9. Pull on your machine too: `git checkout main && git pull`.
 
@@ -130,7 +126,7 @@ You cannot approve your own PR. Open the PR as usual, run the checks on it, and 
 
 The board is the team's shared memory. Each week, or at each wave change:
 
-- Every ticket being worked on is **In progress**, every open PR is **In review**, every merged ticket is **Done**.
+- Every ticket being worked on is **In progress**, every open PR is **In review**, every merged ticket is **Done**. The automation does this; an hourly repair pass fixes anything it missed. Dragging a card by hand is for exceptions only: the repair pass moves a card to In review only if an open PR closes it, and back to In progress if no open PR does.
 - When all tickets of a wave are Done, move the next wave's tickets that are unblocked to **Ready**.
 - Bring up tickets that have sat in **In progress** for more than two days without a commit or comment.
 - Assign people once they accept their invites: `python3 OPS/github/create_backlog.py --assign`.
@@ -141,7 +137,53 @@ The board is the team's shared memory. Each week, or at each wave change:
 - Tag known-good versions: `git tag demo-1 && git push origin demo-1`.
 - Before the demo: freeze merging (only fixes), run the full setup from [setup.md](setup.md) on a clean clone, run the demo script three times, and tag the result.
 
-## 8. Quick command reference
+## 8. Board automation
+
+`.github/workflows/board-automation.yml` runs `OPS/github/board_sync.py` and keeps the board in step with Git. Nobody has to drag cards.
+
+| Event | Board effect |
+|---|---|
+| A branch named `tNN-...` is created (first push) | ticket NN -> **In progress** |
+| PR opened, reopened or marked ready, description has `Closes #N` | ticket N -> **In review** |
+| PR opened as a draft | ticket N stays/goes **In progress** until it is marked ready |
+| PR closed without merging | ticket N -> **In progress** |
+| PR merged | ticket N -> **Done**; each Backlog ticket whose dependencies are all Done -> **Ready**, with a comment tagging its owner |
+| Every hour, or **Run workflow** by hand | repair pass: closed issue -> Done, card state matches open PRs, unblocked -> Ready |
+
+Details worth knowing:
+- Only `Closes`, `Fixes` and `Resolves` link a PR to a ticket. **`Refs #N` deliberately moves nothing**, so a follow-up PR for a finished ticket leaves it Done.
+- Cards never move backwards by accident: a Done ticket stays Done, and a ticket in review is not dragged back by a new branch.
+- Tickets without dependencies (the post-hackathon T29 to T31) are never started automatically.
+- `DOCS/progress.md` is **not** regenerated automatically (a bot would have to push to the protected `main`). Run `python3 OPS/github/update_progress.py` after merges as before.
+
+### One-time setup (needs you)
+
+A user-owned GitHub Project can only be edited with a personal access token, not with the built-in Actions token.
+
+1. GitHub -> your avatar -> **Settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token (classic)**.
+2. Name it `truthguard-board`, choose an expiry that covers the project (for example 60 days), and tick **only** the `project` scope. Nothing else.
+3. Store it as a repository secret (paste the token when asked; it is not shown again):
+   ```bash
+   gh secret set PROJECT_TOKEN -R cyborgwastaken/truthguard
+   ```
+4. Open the board -> **...** (top right) -> **Workflows**. Open **Pull request linked to issue**: either turn it **off** or set its status to **In review**, so it does not fight the automation. Leave **Item closed**, **Pull request merged** and **Item added to project** on.
+5. Merge the PR that added the workflow, then run **Actions -> Board automation -> Run workflow** once. A green run means it works.
+
+Who can see the token: any collaborator with write access can in principle read repository secrets by writing a workflow. That is why the token has the `project` scope only: the worst case is someone editing the board. Rotate it if you ever remove a collaborator, and replace it before it expires (an expired token makes the runs fail with "PROJECT_TOKEN").
+
+### When it misbehaves
+
+| Symptom | Cause and fix |
+|---|---|
+| Runs fail with "PROJECT_TOKEN is not set" | The secret is missing; step 3 |
+| Runs fail with a permission or 401 error from `gh project` | Token expired or lacks the `project` scope; create a new one and set the secret again |
+| Card moved to In review and then back | Another automation: check the board's **Workflows** page (step 4) |
+| A card did not move | Open the run in the **Actions** tab (the step summary lists every change). The hourly repair pass will usually fix it; or **Run workflow** now |
+| The PR has no `Closes #N` | Edit the PR description; the next hourly pass moves the card, or run it by hand |
+
+Preview what would change without changing anything: `python3 OPS/github/board_sync.py --dry-run --reconcile`. Tests for the rules: `python -m pytest OPS/tests`.
+
+## 9. Quick command reference
 
 ```bash
 gh pr list                              # open PRs
