@@ -56,15 +56,16 @@ The primary developer does the work and opens the PRs. The secondary developer(s
 ```python
 class PassageStore(Protocol):
     def search(self, query: str, limit: int) -> List[RetrievedPassage]: ...
+    def related_passages(self, document_ids: List[str]) -> List[RetrievedPassage]: ...
 ```
-The Postgres version (`to_tsvector`, `plainto_tsquery`, `ts_rank`) lives in the BACKEND. Tests in AGENT use a simple in-memory store.
+`related_passages` is a one-hop lookup (agreed on issue #8): every chunk of the documents that supersede, or are superseded by, the given ones, with `score=None`. The Postgres version (`plainto_tsquery` turned into an OR query, ranked with `ts_rank`) lives in `BACKEND/app/db/search.py`. Tests in AGENT use the shared `InMemoryPassageStore` from `retriever.py`; reuse it in your own tests instead of writing another fake store.
 
 **Steps:**
 1. Wait for T02 and T03 to be Done, then `git pull`.
-2. Write `retrieve(question, store, k=8) -> List[RetrievedPassage]`.
-3. **Retrieve several passages, not only the best one.** Conflicts only show up if both sides are retrieved. Also pull in the documents that supersede or are superseded by the retrieved ones (follow `supersedes_document_id`).
-4. Keep scores and document metadata with every passage.
-5. Measure **retrieval recall** on the T01 fixtures: for each labeled case, did we retrieve the documents that are needed? Put the number in the PR description.
+2. Write `retrieve(question, store, k=8, expand_related=True) -> List[RetrievedPassage]`. `k` is the number of ranked hits; related passages are added on top. The plain baseline (T10) calls it with `expand_related=False`.
+3. **Retrieve several passages, not only the best one.** Conflicts only show up if both sides are retrieved. Also pull in the documents that supersede or are superseded by the retrieved ones (follow `supersedes_document_id`), and theirs in turn (chains such as v1 -> v2 -> v3), for at most 5 rounds. A visited set stops cycles.
+4. Keep scores and document metadata with every passage. Ranked hits have a score; related passages have `score=None`. Never sort `None` as a score, and do not treat an unscored passage as a match for the question.
+5. Measure **retrieval recall** on the T01 fixtures: for each labeled case, did we retrieve the documents that are needed? Put the number in the PR description. Compare the OR query with `plainto_tsquery` (every word must match) and keep the better one; on the fixtures the AND form found 5 of 27 needed documents and the OR form found all 27 at `k=8`.
 6. Commit, push, PR (`Closes #8`).
 
 **Done when:** each labeled fixture question retrieves its relevant documents, and the recall number is reported.
