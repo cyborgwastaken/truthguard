@@ -28,6 +28,35 @@ class PassageStore(Protocol):
         ...
 
 
+MAX_EXPANSION_ROUNDS = 5
+
+
+def retrieve(question: str, store: PassageStore, k: int = 8, expand_related: bool = True) -> List[RetrievedPassage]:
+    """The passages that may answer the question: ranked hits first, then supersession-related ones.
+
+    k is the number of ranked hits; related passages are added on top, so the list can be longer than k.
+    Ranked hits carry a score, related passages have score=None. Callers must keep that distinction and
+    never sort None as a score. With expand_related the documents that supersede, or are superseded by,
+    a hit are added, and so are theirs in turn (a chain v1 -> v2 -> v3), for at most MAX_EXPANSION_ROUNDS
+    rounds. A document is added once, so cycles end; a hit document is not topped up with its other chunks.
+    """
+    if k < 1:
+        raise ValueError("k must be at least 1")
+    passages = list(store.search(question, k))
+    if not expand_related:
+        return passages
+    visited = {p.document.document_id for p in passages}
+    frontier = sorted(visited)
+    for _ in range(MAX_EXPANSION_ROUNDS):
+        if not frontier:
+            break
+        found = [p for p in store.related_passages(frontier) if p.document.document_id not in visited]
+        passages.extend(found)
+        frontier = sorted({p.document.document_id for p in found})
+        visited.update(frontier)
+    return passages
+
+
 class InMemoryPassageStore:
     """A PassageStore over a list of documents, for tests. Scoring is a plain word-overlap sum weighted
     by rarity: good enough to exercise callers, not a stand-in for Postgres ranking."""

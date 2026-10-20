@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from truthguard_agent.retriever import InMemoryPassageStore
+from truthguard_agent.retriever import InMemoryPassageStore, retrieve
 from truthguard_agent.schemas import Document
 
 
@@ -107,3 +107,130 @@ def test_related_passages_returns_every_chunk_in_document_then_chunk_order():
 
 def test_related_passages_with_no_ids_returns_nothing():
     assert InMemoryPassageStore([make_doc("v1"), make_doc("v2", supersedes="v1")]).related_passages([]) == []
+
+
+class SpyStore(InMemoryPassageStore):
+    def __init__(self, documents):
+        super().__init__(documents)
+        self.related_calls = []
+
+    def related_passages(self, document_ids):
+        self.related_calls.append(list(document_ids))
+        return super().related_passages(document_ids)
+
+
+def test_retrieve_returns_ranked_hits_with_scores_then_related_passages_without_scores():
+    store = InMemoryPassageStore(
+        [
+            make_doc("v1", "Employees may work remotely five days per week."),
+            make_doc("v2", "Effective April the limit is lower.", supersedes="v1"),
+            make_doc("travel", "Travel must be booked through the portal."),
+        ]
+    )
+    passages = retrieve("remotely days week", store)
+    assert ids(passages) == ["v1::chunk_000", "v2::chunk_000"]
+    assert passages[0].score is not None and passages[0].score > 0
+    assert passages[1].score is None
+    assert passages[1].document.supersedes_document_id == "v1"
+
+
+def test_retrieve_does_not_repeat_a_passage_that_was_already_a_hit():
+    store = InMemoryPassageStore(
+        [
+            make_doc("v1", "Employees may work remotely five days per week."),
+            make_doc("v2", "The remote limit is three days.", supersedes="v1"),
+        ]
+    )
+    passages = retrieve("remotely days", store)
+    assert sorted(ids(passages)) == ["v1::chunk_000", "v2::chunk_000"]
+    assert all(p.score is not None for p in passages)
+
+
+def test_retrieve_follows_a_chain_of_supersessions():
+    store = InMemoryPassageStore(
+        [
+            make_doc("v1", "Employees may work remotely five days per week."),
+            make_doc("v2", "Amended once.", supersedes="v1"),
+            make_doc("v3", "Amended twice.", supersedes="v2"),
+        ]
+    )
+    assert ids(retrieve("remotely days week", store)) == ["v1::chunk_000", "v2::chunk_000", "v3::chunk_000"]
+
+
+def test_retrieve_follows_a_chain_in_both_directions_from_the_middle():
+    store = InMemoryPassageStore(
+        [
+            make_doc("v1", "Original."),
+            make_doc("v2", "Employees may work remotely five days per week.", supersedes="v1"),
+            make_doc("v3", "Amended twice.", supersedes="v2"),
+            make_doc("v4", "Amended three times.", supersedes="v3"),
+        ]
+    )
+    assert ids(retrieve("remotely days week", store)) == [
+        "v2::chunk_000",
+        "v1::chunk_000",
+        "v3::chunk_000",
+        "v4::chunk_000",
+    ]
+
+
+def test_retrieve_stops_on_a_cycle_and_on_self_supersession():
+    cycle = InMemoryPassageStore(
+        [make_doc("a", "Remote days apply.", supersedes="b"), make_doc("b", "Other text.", supersedes="a")]
+    )
+    assert ids(retrieve("remote days", cycle)) == ["a::chunk_000", "b::chunk_000"]
+    itself = InMemoryPassageStore([make_doc("s", "Remote days apply.", supersedes="s")])
+    assert ids(retrieve("remote days", itself)) == ["s::chunk_000"]
+
+
+def test_retrieve_stops_after_a_fixed_number_of_rounds_on_a_long_chain():
+    docs = [make_doc("d01", "Employees may work remotely five days per week.")]
+    docs += [make_doc("d%02d" % n, "Amended.", supersedes="d%02d" % (n - 1)) for n in range(2, 13)]
+    store = SpyStore(docs)
+    passages = retrieve("remotely days week", store)
+    assert len(store.related_calls) <= 5
+    assert 2 < len(passages) < 12
+
+
+def test_retrieve_does_not_add_the_rest_of_a_document_that_was_already_a_hit():
+    store = InMemoryPassageStore(
+        [
+            make_doc("v1", "Remote days apply.\n\n" + "z" * 500 + "\n\n" + "y" * 500),
+            make_doc("v2", "Amended.", supersedes="v1"),
+        ]
+    )
+    assert ids(retrieve("remote days", store)) == ["v1::chunk_000", "v2::chunk_000"]
+
+
+def test_retrieve_without_expansion_returns_only_the_ranked_hits():
+    store = SpyStore(
+        [make_doc("v1", "Employees may work remotely five days per week."), make_doc("v2", "Amended.", supersedes="v1")]
+    )
+    passages = retrieve("remotely days week", store, expand_related=False)
+    assert ids(passages) == ["v1::chunk_000"]
+    assert store.related_calls == []
+
+
+def test_retrieve_k_limits_the_ranked_hits_and_related_passages_come_on_top():
+    store = InMemoryPassageStore(
+        [
+            make_doc("a", "leave one"),
+            make_doc("b", "leave two"),
+            make_doc("c", "leave three"),
+            make_doc("amend", "Nothing in common.", supersedes="a"),
+        ]
+    )
+    passages = retrieve("leave", store, k=2)
+    assert ids(passages) == ["a::chunk_000", "b::chunk_000", "amend::chunk_000"]
+
+
+def test_retrieve_with_no_hits_returns_nothing_and_does_not_look_for_related_documents():
+    store = SpyStore([make_doc("a", "Sick leave is 10 days."), make_doc("b", "Amended.", supersedes="a")])
+    assert retrieve("stock options", store) == []
+    assert store.related_calls == []
+
+
+@pytest.mark.parametrize("bad", [0, -1])
+def test_retrieve_k_must_be_positive(bad):
+    with pytest.raises(ValueError):
+        retrieve("leave", InMemoryPassageStore([make_doc("a")]), k=bad)
