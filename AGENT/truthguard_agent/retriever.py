@@ -34,8 +34,12 @@ class PassageStore(Protocol):
 MAX_EXPANSION_ROUNDS = 5
 
 
-def retrieve(question: str, store: PassageStore, k: int = 8, expand_related: bool = True) -> List[RetrievedPassage]:
+def retrieve(
+    question: str, store: PassageStore, k: int = 8, expand_related: bool = True
+) -> List[RetrievedPassage]:
     """The passages that may answer the question: ranked hits first, then supersession-related ones.
+
+    The result is a new list; the one the store returned is not changed.
 
     k is the number of ranked hits; related passages are added on top, so the list can be longer than k.
     Ranked hits carry a score, related passages have score=None. Callers must keep that distinction and
@@ -53,7 +57,8 @@ def retrieve(question: str, store: PassageStore, k: int = 8, expand_related: boo
     for _ in range(MAX_EXPANSION_ROUNDS):
         if not frontier:
             break
-        found = [p for p in store.related_passages(frontier) if p.document.document_id not in visited]
+        related = store.related_passages(frontier)
+        found = [p for p in related if p.document.document_id not in visited]
         passages.extend(found)
         frontier = sorted({p.document.document_id for p in found})
         visited.update(frontier)
@@ -99,4 +104,6 @@ class InMemoryPassageStore:
         for doc in self._documents.values():
             if doc.supersedes_document_id in given:
                 related.add(doc.document_id)
-        return [p.model_copy(deep=True) for doc_id in sorted(related - given) for p in self._passages[doc_id]]
+        return [
+            p.model_copy(deep=True) for doc_id in sorted(related - given) for p in self._passages[doc_id]
+        ]

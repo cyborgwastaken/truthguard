@@ -188,8 +188,8 @@ def test_retrieve_stops_after_a_fixed_number_of_rounds_on_a_long_chain():
     docs += [make_doc("d%02d" % n, "Amended.", supersedes="d%02d" % (n - 1)) for n in range(2, 13)]
     store = SpyStore(docs)
     passages = retrieve("remotely days week", store)
-    assert len(store.related_calls) <= 5
-    assert 2 < len(passages) < 12
+    assert store.related_calls == [["d01"], ["d02"], ["d03"], ["d04"], ["d05"]]
+    assert ids(passages) == ["d%02d::chunk_000" % n for n in range(1, 7)]
 
 
 def test_retrieve_does_not_add_the_rest_of_a_document_that_was_already_a_hit():
