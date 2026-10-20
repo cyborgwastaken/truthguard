@@ -89,7 +89,7 @@ Do not add files at the repository root. `AGENT` must not import from `BACKEND` 
    For frontend: `cd FRONTEND && npm run build` (and tests, once they exist).
 7. **Python 3.12 or newer.** The minimum is set by `requires-python` in `AGENT/pyproject.toml`. Modern syntax (`X | None`, `list[str]`, `match`) is allowed in new code. Do not rewrite existing code just to change its style.
 8. **Stay inside the ticket.** Do the ticket's "Done when" criteria and nothing more. Do not refactor unrelated files, rename IDs, or change other roles' files. If you find a bug in someone else's code, open an issue or tell the human; do not fix it silently in your PR.
-9. **Secrets.** Never commit API keys, passwords or `.env` files. Read keys from environment variables (for the language model: `ANTHROPIC_API_KEY`).
+9. **Secrets.** Never commit API keys, passwords or `.env` files. Read keys from environment variables (for the language model: `GROQ_API_KEY`).
 10. **Dependencies.** Add a dependency only when needed, and put it in the right file (`BACKEND/requirements.txt`, `AGENT/pyproject.toml`, `FRONTEND/package.json`). Say why in the PR.
 11. **Match the surrounding code**: naming, comment density and style. Do not add decorative comments.
 

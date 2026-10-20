@@ -62,11 +62,11 @@ Tickets are grouped into **waves**. Wave 1 first, then Wave 2, and so on. Within
    ```bash
    git clone https://github.com/cyborgwastaken/truthguard.git
    cd truthguard
-   python3 -m venv .venv
+   python3.12 -m venv .venv         # Windows: py -3.12 -m venv .venv (see DOCS/setup.md if this fails)
    source .venv/bin/activate        # Windows: .venv\Scripts\activate
    cd BACKEND
    pip install -r requirements.txt  # run this from inside BACKEND, not the repo root
-   cd ../AGENT && python -m pytest  # should say 6 passed
+   cd ../AGENT && python -m pytest  # all tests should pass
    ```
    If the tests pass, your setup works.
 
