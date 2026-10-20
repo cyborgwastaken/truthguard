@@ -71,7 +71,7 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 - **Chains:** a document A is stale only if a document that **names A directly** is in force and allowed to supersede under D2. Staleness is not inherited. Take C supersedes B and B supersedes A:
   - B in force: A is stale, whether or not C is in force. A stale B still supersedes A, because B names A.
   - B not in force (effective date unknown or in the future): A is **not** stale, even if C is in force, because C never names A.
-- **Where supersession is looked up:** among all retrieved passages, not only among the sources of one conflict.
+- **Where supersession is looked up:** among all retrieved passages, not only among the sources of one conflict. A conflict is closed under supersession before it is judged (Step 1).
 - **A supersession target that is not in the corpus** (the pointed-to ID was never ingested, or was not retrieved) is ignored. It cannot make anything stale because there is nothing to compare. Mention it in the reason only if it affects the outcome.
 - **Example:**
   - `remote_policy_v1`: official, effective 2026-01-15, "up to five days remote".
@@ -95,10 +95,9 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 
 ### R3: Authority
 
-- **Rule:** if both sides of a conflict have a known authority level and the levels differ, the higher one wins. Ranking: `official` above `draft` and `informal`. `draft` and `informal` rank equal to each other (decision D3).
-- **Applies only when** there is no in-force supersession (R1 takes priority) and both levels are known.
-- **More than two sides:** a side is outranked only if another remaining side has a known, higher level. `unknown` neither outranks nor is outranked. Example: official X, draft Y, unknown U: Y is outranked by X; X and U remain, so the conflict is unresolved.
-- **`unknown` gives no ranking.** If either side is `unknown`, R3 does not fire. An `unknown` document is not treated as lower authority.
+- **Rule (pairwise):** side X is outranked by side Y when both have a known authority level and Y's is higher. Ranking: `official` above `draft` and `informal`. `draft` and `informal` rank equal to each other (decision D3). An outranked side is dropped; the conflict is resolved if exactly one side is left.
+- **Applies after R1:** it only compares the sides that an in-force supersession has not already defeated.
+- **`unknown` gives no ranking.** An `unknown` side neither outranks nor is outranked, and is not treated as lower authority. Example: official X, draft Y, unknown U: Y is outranked by X; X and U remain, so the conflict is unresolved.
 - **Outcome:** `resolved`, winner the higher-authority document. Stale list stays empty, because authority does not make a document outdated. Reason names both documents, both levels and the rule.
 - **Example:**
   - `travel_budget_policy`: official, "hotel limit 150".
@@ -154,15 +153,20 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 - **Stale sources are computed once, over all retrieved passages:** every retrieved document that is superseded by an in-force retrieved document under R1 goes in `stale_source_ids`, whether or not it appears in a contradiction. Staleness decides a conflict only, it does not remove a document from the evidence (decision D8).
 - **`unsupported_claims` is ignored.** The resolver judges conflicts between sources, not whether claims are backed. Status never changes because of it (decision D10).
 
-**Step 1: per conflict.** For each contradiction in `critic.contradictions`, look only at the documents in its `source_ids`:
+**Step 1: per conflict.** For each contradiction in `critic.contradictions`:
 
-1. R1 and R2: find any in-force supersession among them. A document that is superseded by an in-force retrieved document (R1) is defeated.
-2. Among the sides that remain, R3: drop any side outranked by another remaining side with a known, higher authority level.
-3. If still no single remaining side, R5.
+1. **Close the sides under supersession.** Start from the retrieved documents in its `source_ids`. Repeatedly add every other retrieved document linked to a member by an **applicable** supersession (R1 and R2 both satisfied, D2 allowed), in either direction, chains included, until nothing more is added. The superseding document therefore takes part in the conflict whether or not the critic listed it. Supersessions that do not apply (future-dated, undated, not allowed) add nothing. The reason names every document that joined and why.
+2. **R1 and R2:** a side that is superseded by an applicable retrieved document is defeated.
+3. **R3:** among the sides that remain, drop any side outranked by another remaining side.
+4. If more than one side remains, R5.
 
-A conflict is **resolved** only if exactly one position remains undefeated. If two or more remain, it is unresolved.
+A conflict is **resolved** only if exactly one side remains. If two or more remain, it is unresolved. The winner can be a document the critic did not list.
 
-**Step 2: combine.** The overall status is `resolved` only if every conflict is resolved. If any conflict is unresolved, the overall status is `conflict_unresolved`, and the reason covers the unresolved ones. `winning_source_ids` lists winners of resolved conflicts. `stale_source_ids` is the list computed in Step 0, not a per-conflict list.
+*Worked example (illustrative; in the labeled C18 the critic reports no conflict).* The critic lists `equipment_allowance_v1` (official) and `contractor_equipment_informal` (informal). `equipment_allowance_v2` is retrieved, official, in force, and supersedes v1, but is not listed. Without the closure step, v1 would be defeated and the informal note would win, the least authoritative source. With it, v2 joins, v1 is defeated, v2 outranks the informal note under R3, and the result is `resolved` with winner `equipment_allowance_v2` and stale `equipment_allowance_v1`, whatever the critic listed.
+
+*Every listed side superseded (D11).* If the critic lists A and B, A is superseded by B and B by C, then C joins, A and B are defeated, and C is the single remaining side: `resolved` in favor of C, with a reason that says the listed sources were superseded. If two different documents supersede the two listed sides, both join and remain, with no precedence between them: `conflict_unresolved`.
+
+**Step 2: combine.** The overall status is `resolved` only if every conflict is resolved. If any conflict is unresolved, the overall status is `conflict_unresolved`, and the reason covers the unresolved ones. `winning_source_ids` lists winners of resolved conflicts, including documents that joined through step 1. `stale_source_ids` is the list computed in Step 0, not a per-conflict list.
 
 ## 6. Outcome table
 
@@ -182,12 +186,15 @@ A conflict is **resolved** only if exactly one position remains undefeated. If t
 | 12 | some | yes | named by an `unknown`-authority document against an `official` one | official vs unknown | `conflict_unresolved` | R1 (D2), R3, R5 |
 | 13 | some | `contradictions` empty, `needs_resolution` true | n/a | n/a | `conflict_unresolved` | Step 0 (D9) |
 | 14 | some | no | yes (B in force, names A) | any | `resolved`, A in `stale_source_ids` | Step 0 (D8) |
+| 15 | some | yes, but the critic did not list the superseding document | yes (retrieved, in force, names a listed source) | superseder `official`, other side lower | `resolved`, the superseder wins | Step 1 closure, R3 |
+| 16 | some | yes, every listed side superseded in a chain | yes | any | `resolved`, the last superseder wins, reason says the listed sources were superseded | Step 1 closure (D11) |
+| 17 | some | yes, every listed side superseded by different documents | yes | equal | `conflict_unresolved` | Step 1 closure, R5 |
 
 In rows 4 and 5, if authority levels are known and differ, R3 applies as in row 7.
 
 ## 7. Decisions and questions for the lead
 
-The guiding principle: when metadata is unclear, an honest `conflict_unresolved` is better than a confident wrong `resolved`. The decisions below follow from it. D1 to D7 were confirmed by @cyborgwastaken in the T05 review. D8 to D10 came from that review.
+The guiding principle: when metadata is unclear, an honest `conflict_unresolved` is better than a confident wrong `resolved`. The decisions below follow from it. D1 to D7 were confirmed by @cyborgwastaken in the T05 review. D8 to D11 came from that review.
 
 | ID | Topic | Decision |
 |---|---|---|
@@ -201,7 +208,6 @@ The guiding principle: when metadata is unclear, an honest `conflict_unresolved`
 | D8 | Meaning of "stale" | Staleness only decides a conflict. `stale_source_ids` is informational, for the answer view and the trust report's freshness dimension. It never removes a document from the evidence. |
 | D9 | `needs_resolution` true with no contradictions | The resolver returns `conflict_unresolved` with an explanatory reason. The critic must not produce this combination. |
 | D10 | `unsupported_claims` | Ignored by the resolver. The orchestrator (T13) handles the case where every claim is unsupported (D5). The trust report (T18) shows partial citation support. |
+| D11 | Every listed side superseded | The conflict is moot and resolves in favor of the superseding document(s), and the reason says so. This follows from the closure rule in Step 1. Caveat: the resolver cannot see that a superseding document is silent on the question. Unsupported claims (D10) and the trust report catch that, not the resolver. |
 
-Question for the lead (from the review of this page):
-
-1. If every side of a conflict is defeated by supersession (for example two superseded documents that disagree, and the in-force document is silent), I propose the conflict is moot: it counts as resolved in favor of the superseding document(s), and the reason says so. The safer alternative is `conflict_unresolved`. Which one?
+No questions are open at the time of writing.
