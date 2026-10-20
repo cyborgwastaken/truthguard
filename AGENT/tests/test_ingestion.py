@@ -76,6 +76,21 @@ def test_one_line_document_is_one_chunk():
         ("Line one\nline two.\n\nNext.", 15, [("Line one\nline two.", 0, 18), ("Next.", 20, 25)]),
         # a dot inside a token (3.14) is not a sentence end
         ("Version 3.14 applies. Next.", 15, [("Version 3.14 applies.", 0, 21), ("Next.", 22, 27)]),
+        # a period followed by a lowercase word is not a sentence end
+        (
+            "Staff may work remotely, e.g. on Fridays. Next.",
+            15,
+            [("Staff may work remotely, e.g. on Fridays.", 0, 41), ("Next.", 42, 47)],
+        ),
+        # known abbreviations are not sentence ends, even before a capital letter or a digit
+        ("Dr. Lee approved the plan. Next.", 15, [("Dr. Lee approved the plan.", 0, 26), ("Next.", 27, 32)]),
+        ("See Fig. 3 for details. Next.", 15, [("See Fig. 3 for details.", 0, 23), ("Next.", 24, 29)]),
+        # "No." as an answer still ends a sentence
+        (
+            "Is it covered? No. Travel is booked.",
+            15,
+            [("Is it covered?", 0, 14), ("No.", 15, 18), ("Travel is booked.", 19, 36)],
+        ),
         # indentation and non-breaking spaces are excluded from chunk text; a blank-looking paragraph is skipped
         (
             "  Indented.\n\n \n\nTail ",
@@ -91,6 +106,10 @@ def test_one_line_document_is_one_chunk():
         "single-newline-merged",
         "single-newline-not-split",
         "dot-inside-token",
+        "lowercase-after-period",
+        "title-abbreviation",
+        "abbreviation-before-digit",
+        "no-as-answer-still-splits",
         "indent-and-nbsp-trimmed",
     ],
 )

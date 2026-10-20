@@ -9,9 +9,12 @@ from .schemas import Chunk, Document, make_chunk_id
 
 _BLANK_RUN = re.compile(r"\n{3,}")
 _PARAGRAPH = re.compile(r"[^\n]+(?:\n[^\n]+)*")
-# Sentence end: . ! or ? (plus closing quotes/brackets) followed by whitespace. Abbreviations such as
-# "e.g." also match, which only means a long paragraph may be cut slightly early.
+# Sentence end: . ! or ? (plus closing quotes/brackets) followed by whitespace, unless the next word is
+# lowercase or the period closes a known abbreviation. A rule of thumb, not a parser: an unlisted
+# abbreviation before a capital letter still ends a sentence, which only cuts a long paragraph early.
 _SENTENCE_END = re.compile(r"([.!?][\"')\]]*)\s+")
+_WORD_BEFORE = re.compile(r"[A-Za-z]+$")
+_ABBREVIATIONS = frozenset(["dr", "mr", "mrs", "ms", "prof", "sec", "fig", "vs"])
 
 
 def normalize_text(text: str) -> str:
@@ -22,6 +25,16 @@ def normalize_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = "\n".join(line.rstrip(" \t") for line in text.split("\n"))
     return _BLANK_RUN.sub("\n\n", text)
+
+
+def _ends_sentence(text: str, match: re.Match) -> bool:
+    if text[match.end()].islower():
+        return False
+    if match.group(1) == ".":
+        word = _WORD_BEFORE.search(text, max(0, match.start() - 10), match.start())
+        if word and word.group().lower() in _ABBREVIATIONS:
+            return False
+    return True
 
 
 def _units(text: str, max_chars: int) -> List[Tuple[int, int]]:
@@ -38,6 +51,8 @@ def _units(text: str, max_chars: int) -> List[Tuple[int, int]]:
             continue
         position = start
         for sentence in _SENTENCE_END.finditer(text, start, end):
+            if not _ends_sentence(text, sentence):
+                continue
             spans.append((position, sentence.end(1)))
             position = sentence.end()
         if position < end:
