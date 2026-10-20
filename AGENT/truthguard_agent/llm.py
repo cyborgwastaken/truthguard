@@ -2,6 +2,7 @@
 call a paid API. A real client (Gemini) implements LLMClient; FakeLLM is for tests."""
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Union
 
 
@@ -33,9 +34,10 @@ def _sdk():
 class GeminiLLM:
     """LLMClient for the Gemini API (google-genai SDK).
 
-    The key comes from api_key or the GEMINI_API_KEY environment variable; it is never logged or stored
-    here. The model name is passed in (AGENT cannot read BACKEND's settings). Free-tier prompts are used
-    by Google to improve its products, so send it only the fictional fixtures, never real documents.
+    The key comes from api_key, else the GEMINI_API_KEY environment variable (else the SDK's own
+    GOOGLE_API_KEY); it is never logged or stored here. Always the Gemini API, never Vertex AI. The model
+    name is passed in (AGENT cannot read BACKEND's settings). Free-tier prompts are used by Google to
+    improve its products, so send it only the fictional fixtures, never real documents.
     """
 
     def __init__(
@@ -52,10 +54,13 @@ class GeminiLLM:
             genai, _, types = _sdk()
             try:
                 client = genai.Client(
-                    api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000))
+                    api_key=api_key or os.environ.get("GEMINI_API_KEY"),
+                    vertexai=False,
+                    http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000)),
                 )
-            except ValueError as error:
-                raise LLMError("No Gemini API key found: set GEMINI_API_KEY (%s)" % error) from error
+            except Exception as error:  # a missing key raises ValueError; keep the one error type
+                message = "Could not create the Gemini client (is GEMINI_API_KEY set?): %s" % error
+                raise LLMError(message) from error
         self._client = client
 
     def complete(self, system: str, user: str, json_output: bool = False) -> str:
@@ -64,13 +69,15 @@ class GeminiLLM:
             system_instruction=system,
             max_output_tokens=self._max_output_tokens,
             response_mime_type="application/json" if json_output else None,
+            automatic_continuation=False,  # one complete() call is one request against the quota
         )
         try:
             response = self._client.models.generate_content(
                 model=self.model_name, contents=user, config=config
             )
         except errors.APIError as error:
-            raise LLMError("Gemini API error %s %s: %s" % (error.code, error.status, error.message)) from error
+            status, detail = error.status or "(no status)", error.message or "(no message)"
+            raise LLMError("Gemini API error %s %s: %s" % (error.code, status, detail)) from error
         except Exception as error:  # timeouts, connection errors, anything else the SDK raises
             raise LLMError("Gemini call failed (%s): %s" % (type(error).__name__, error)) from error
         return self._text_of(response, types)

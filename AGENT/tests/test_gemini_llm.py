@@ -23,7 +23,7 @@ class StubModels:
 
     def generate_content(self, *, model, contents, config):
         self.calls.append({"model": model, "contents": contents, "config": config})
-        if isinstance(self.outcome, Exception):
+        if isinstance(self.outcome, BaseException):
             raise self.outcome
         return self.outcome
 
@@ -74,7 +74,8 @@ def test_an_api_error_becomes_an_llm_error_with_the_status_and_message():
 
 
 def test_a_server_error_and_a_timeout_also_become_llm_errors():
-    server = errors.ServerError(503, {"error": {"code": 503, "message": "overloaded", "status": "UNAVAILABLE"}})
+    body = {"error": {"code": 503, "message": "overloaded", "status": "UNAVAILABLE"}}
+    server = errors.ServerError(503, body)
     with pytest.raises(LLMError, match="503"):
         llm_for(server)[0].complete("s", "u")
     with pytest.raises(LLMError, match="TimeoutError"):
@@ -100,23 +101,67 @@ def test_a_reply_stopped_for_another_reason_is_an_llm_error():
 
 
 @pytest.mark.parametrize(
-    "empty",
-    [types.GenerateContentResponse(), response(None), response("   ")],
-    ids=["no-candidates", "no-text", "blank"],
+    "outcome, message",
+    [
+        (types.GenerateContentResponse(), "no candidate"),
+        (response(None), "empty reply"),
+        (response("   "), "empty reply"),
+        (types.GenerateContentResponse(
+            candidates=[types.Candidate(
+                content=types.Content(role="model", parts=[types.Part(text="reasoning", thought=True)]),
+                finish_reason=types.FinishReason.STOP,
+            )]
+        ), "empty reply"),
+    ],
+    ids=["no-candidates", "no-text", "blank", "thinking-only"],
 )
-def test_a_reply_with_no_text_is_an_llm_error(empty):
-    with pytest.raises(LLMError, match="empty|no reply|no candidate"):
-        llm_for(empty)[0].complete("s", "u")
+def test_a_reply_with_no_text_is_an_llm_error(outcome, message):
+    with pytest.raises(LLMError, match=message):
+        llm_for(outcome)[0].complete("s", "u")
+
+
+@pytest.mark.parametrize(
+    "finish",
+    [None, types.FinishReason.FINISH_REASON_UNSPECIFIED, types.FinishReason.STOP],
+    ids=["none", "unspecified", "stop"],
+)
+def test_a_normal_finish_reason_returns_the_text(finish):
+    assert llm_for(response("fine", finish=finish))[0].complete("s", "u") == "fine"
+
+
+def test_a_continuation_stop_reason_is_not_taken_as_a_complete_reply():
+    with pytest.raises(LLMError, match="CONTINUATION"):
+        llm_for(response("part", finish=types.FinishReason.CONTINUATION))[0].complete("s", "u")
+
+
+def test_one_call_is_one_request_with_no_automatic_continuation():
+    llm, models = llm_for(response("x"))
+    llm.complete("s", "u")
+    assert models.calls[0]["config"].automatic_continuation is False
+
+
+def test_an_api_error_without_a_status_or_message_still_reads_clearly():
+    with pytest.raises(LLMError) as raised:
+        llm_for(errors.ServerError(502, {}))[0].complete("s", "u")
+    assert "502" in str(raised.value) and "None" not in str(raised.value)
+
+
+def test_a_value_error_from_the_sdk_becomes_an_llm_error_but_ctrl_c_does_not():
+    with pytest.raises(LLMError, match="bad config"):
+        llm_for(ValueError("bad config"))[0].complete("s", "u")
+    with pytest.raises(KeyboardInterrupt):
+        llm_for(KeyboardInterrupt())[0].complete("s", "u")
 
 
 def test_without_an_api_key_building_the_client_fails_clearly(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI"):
+        monkeypatch.delenv(name, raising=False)
     with pytest.raises(LLMError, match="GEMINI_API_KEY"):
         GeminiLLM("gemini-test")
 
 
-def test_the_sdk_client_gets_the_key_and_a_timeout_in_milliseconds(monkeypatch):
+@pytest.fixture()
+def sdk_client_kwargs(monkeypatch):
     seen = {}
 
     class FakeSdkClient:
@@ -124,15 +169,54 @@ def test_the_sdk_client_gets_the_key_and_a_timeout_in_milliseconds(monkeypatch):
             seen.update(kwargs)
 
     monkeypatch.setattr("google.genai.Client", FakeSdkClient)
+    for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    return seen
+
+
+def test_the_sdk_client_gets_the_key_and_a_timeout_in_milliseconds(sdk_client_kwargs):
     GeminiLLM("gemini-test", api_key="the-key", timeout_seconds=12.5)
-    assert seen["api_key"] == "the-key"
-    assert seen["http_options"].timeout == 12500
+    assert sdk_client_kwargs["api_key"] == "the-key"
+    assert sdk_client_kwargs["http_options"].timeout == 12500
+
+
+def test_the_sdk_client_always_uses_the_gemini_api_never_vertex(sdk_client_kwargs, monkeypatch):
+    monkeypatch.setenv("GOOGLE_GENAI_USE_VERTEXAI", "true")
+    GeminiLLM("gemini-test", api_key="the-key")
+    assert sdk_client_kwargs["vertexai"] is False
+
+
+def test_the_key_is_taken_from_gemini_api_key_even_when_google_api_key_is_set(sdk_client_kwargs, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
+    GeminiLLM("gemini-test")
+    assert sdk_client_kwargs["api_key"] == "gemini-key"
+
+
+def test_an_explicit_key_beats_the_environment(sdk_client_kwargs, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+    GeminiLLM("gemini-test", api_key="explicit-key")
+    assert sdk_client_kwargs["api_key"] == "explicit-key"
+
+
+def test_any_failure_while_building_the_sdk_client_is_an_llm_error(monkeypatch):
+    class BrokenSdkClient:
+        def __init__(self, **kwargs):
+            raise RuntimeError("no credentials")
+
+    monkeypatch.setattr("google.genai.Client", BrokenSdkClient)
+    with pytest.raises(LLMError, match="no credentials"):
+        GeminiLLM("gemini-test", api_key="k")
 
 
 def test_gemini_llm_works_with_the_synthesizer_end_to_end():
-    chunk = Chunk(chunk_id="d1::chunk_000", document_id="d1", index=0, text="Five days.", start_offset=0, end_offset=10)
-    passage = RetrievedPassage(chunk=chunk, document=Document(document_id="d1", title="t", content="Five days."))
-    reply = json.dumps({"claims": [{"text": "Five days.", "citation_chunk_ids": ["d1::chunk_000"]}], "caveats": []})
+    chunk = Chunk(
+        chunk_id="d1::chunk_000", document_id="d1", index=0, text="Five days.", start_offset=0, end_offset=10
+    )
+    document = Document(document_id="d1", title="t", content="Five days.")
+    passage = RetrievedPassage(chunk=chunk, document=document)
+    claims = [{"text": "Five days.", "citation_chunk_ids": ["d1::chunk_000"]}]
+    reply = json.dumps({"claims": claims, "caveats": []})
     llm, models = llm_for(response(reply))
     result = synthesize("How many days?", [passage], llm)
     assert result.ok and result.model_name == "gemini-test"
