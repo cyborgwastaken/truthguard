@@ -123,7 +123,7 @@ def on_branch_created(board: Board, ref: str, ref_type: str) -> None:
 def on_pull_request(board: Board, action: str, pr: dict) -> None:
     tickets = [board.tickets[n] for n in closing_issues(pr.get("body")) if n in board.tickets]
     number = pr.get("number")
-    merged_something = False
+    merged = False
     for ticket in tickets:
         if action in ("opened", "reopened"):
             if pr.get("draft"):
@@ -136,10 +136,14 @@ def on_pull_request(board: Board, action: str, pr: dict) -> None:
             move(board, ticket, "In progress", {"In review"}, "PR #%s back to draft" % number)
         elif action == "closed":
             if pr.get("merged"):
-                merged_something |= move(board, ticket, "Done", NOT_DONE, "PR #%s merged" % number)
+                move(board, ticket, "Done", NOT_DONE, "PR #%s merged" % number)
+                merged = True
             else:
                 move(board, ticket, "In progress", {"In review"}, "PR #%s closed without merging" % number)
-    if merged_something:
+    if merged:
+        # Always unlock, even if the card was already Done: the board's built-in "Pull request merged"
+        # workflow usually sets Done before this script runs. unlock() only moves Backlog tickets whose
+        # dependencies are all Done, so repeating it is harmless.
         unlock(board)
 
 
