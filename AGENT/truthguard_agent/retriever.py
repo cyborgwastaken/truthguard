@@ -9,19 +9,22 @@ from typing import Dict, Iterable, List, Protocol
 from .ingestion import chunk_document
 from .schemas import Document, RetrievedPassage
 
-_WORD = re.compile(r"[a-z0-9]+")
+_WORD = re.compile(r"\w+")
 
 
 class PassageStore(Protocol):
     def search(self, query: str, limit: int) -> List[RetrievedPassage]:
-        """Passages that match the query, best first, each with a score."""
+        """Passages that match the query, best first, each with a score above zero.
+
+        At most limit passages come back, and limit below 1 raises ValueError.
+        """
         ...
 
     def related_passages(self, document_ids: List[str]) -> List[RetrievedPassage]:
         """Every passage of the documents one supersession step away from the given ones.
 
         That means documents that supersede a given document and documents a given document supersedes,
-        but not the given documents themselves. Passages come in document then chunk order with
+        but not the given documents themselves. Passages come in document-id then chunk order with
         score=None, because no text match was scored for them. Unknown IDs, and a supersedes_document_id
         that points at a document which was never ingested, are ignored.
         """
@@ -75,19 +78,19 @@ class InMemoryPassageStore:
         words = [set(_WORD.findall(p.chunk.text.lower())) for p in passages]
         weight = {}
         for term in set(_WORD.findall(query.lower())):
-            matches = sum(term in found for found in words)
+            matches = sum(1 for found in words if term in found)
             if matches:
                 weight[term] = math.log(1 + len(passages) / matches)
         scored = []
         for passage, found in zip(passages, words):
             score = sum(w for term, w in weight.items() if term in found)
             if score > 0:
-                scored.append(passage.model_copy(update={"score": score}))
-        scored.sort(key=lambda p: (-p.score, p.chunk.chunk_id))
-        return scored[:limit]
+                scored.append((score, passage))
+        scored.sort(key=lambda s: (-s[0], s[1].chunk.chunk_id))
+        return [p.model_copy(update={"score": s}, deep=True) for s, p in scored[:limit]]
 
     def related_passages(self, document_ids: List[str]) -> List[RetrievedPassage]:
-        given = set(document_ids)
+        given = {doc_id for doc_id in document_ids if doc_id is not None}
         related = set()
         for doc_id in given & self._documents.keys():
             older = self._documents[doc_id].supersedes_document_id
@@ -96,4 +99,4 @@ class InMemoryPassageStore:
         for doc in self._documents.values():
             if doc.supersedes_document_id in given:
                 related.add(doc.document_id)
-        return [p for doc_id in sorted(related - given) for p in self._passages[doc_id]]
+        return [p.model_copy(deep=True) for doc_id in sorted(related - given) for p in self._passages[doc_id]]

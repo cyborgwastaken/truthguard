@@ -234,3 +234,66 @@ def test_retrieve_with_no_hits_returns_nothing_and_does_not_look_for_related_doc
 def test_retrieve_k_must_be_positive(bad):
     with pytest.raises(ValueError):
         retrieve("leave", InMemoryPassageStore([make_doc("a")]), k=bad)
+
+
+def test_results_are_copies_so_editing_one_does_not_change_the_store():
+    store = InMemoryPassageStore([make_doc("v1", "Remote days apply."), make_doc("v2", "Amended.", supersedes="v1")])
+    hit = store.search("remote days", limit=5)[0]
+    hit.chunk.text = "tampered"
+    hit.document.title = "tampered"
+    related = store.related_passages(["v1"])[0]
+    related.score = 9.0
+    related.chunk.text = "tampered"
+    assert store.search("remote days", limit=5)[0].chunk.text == "Remote days apply."
+    assert store.search("remote days", limit=5)[0].document.title == "v1"
+    assert store.related_passages(["v1"])[0].score is None
+    assert store.related_passages(["v1"])[0].chunk.text == "Amended."
+
+
+def test_search_matches_non_ascii_words_as_whole_words():
+    store = InMemoryPassageStore([make_doc("de", "Der über Vertrag gilt."), make_doc("x", "Nur ber ist hier.")])
+    assert ids(store.search("über", limit=5)) == ["de::chunk_000"]
+    cyrillic = InMemoryPassageStore([make_doc("ru", "Отпуск составляет 25 дней.")])
+    assert ids(cyrillic.search("отпуск", limit=5)) == ["ru::chunk_000"]
+
+
+def test_related_passages_is_one_hop_only_on_the_older_side_too():
+    store = InMemoryPassageStore([make_doc("v1"), make_doc("v2", supersedes="v1"), make_doc("v3", supersedes="v2")])
+    passages = store.related_passages(["v3"])
+    assert ids(passages) == ["v2::chunk_000"]
+    assert passages[0].score is None
+
+
+def test_related_passages_treats_repeated_and_missing_ids_like_a_set():
+    store = InMemoryPassageStore([make_doc("v1"), make_doc("v2", supersedes="v1"), make_doc("plain")])
+    assert ids(store.related_passages(["v1", "v1"])) == ["v2::chunk_000"]
+    assert store.related_passages([None]) == []
+
+
+def test_related_passages_of_a_document_that_supersedes_itself_is_empty():
+    assert InMemoryPassageStore([make_doc("s", supersedes="s")]).related_passages(["s"]) == []
+
+
+class CannedStore:
+    """A store that returns what it was given, with no checks of its own."""
+
+    def __init__(self, hits, related):
+        self.hits = hits
+        self.related = related
+
+    def search(self, query, limit):
+        return self.hits
+
+    def related_passages(self, document_ids):
+        return self.related
+
+
+def test_retrieve_checks_k_itself_and_does_not_change_the_list_the_store_returned():
+    docs = InMemoryPassageStore([make_doc("v1", "Remote days apply."), make_doc("v2", "Amended.", supersedes="v1")])
+    hits = docs.search("remote days", limit=5)
+    related = docs.related_passages(["v1"])
+    store = CannedStore(hits, related)
+    with pytest.raises(ValueError):
+        retrieve("remote days", store, k=0)
+    assert ids(retrieve("remote days", store)) == ["v1::chunk_000", "v2::chunk_000"]
+    assert ids(store.hits) == ["v1::chunk_000"]
