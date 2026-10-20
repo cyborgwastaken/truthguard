@@ -160,7 +160,7 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 3. **R3:** among the sides that remain, drop any side outranked by another remaining side.
 4. If more than one side remains, R5.
 
-A conflict is **resolved** only if exactly one side remains. If two or more remain, it is unresolved. The winner can be a document the critic did not list.
+A conflict is **resolved** only if exactly one side remains. If two or more remain, it is unresolved. If **no** side remains (for example two documents that each supersede the other, a loop in the metadata), it is unresolved too: `conflict_unresolved`, and the reason names the documents in the loop. The winner can be a document the critic did not list.
 
 *Worked example (illustrative; in the labeled C18 the critic reports no conflict).* The critic lists `equipment_allowance_v1` (official) and `contractor_equipment_informal` (informal). `equipment_allowance_v2` is retrieved, official, in force, and supersedes v1, but is not listed. Without the closure step, v1 would be defeated and the informal note would win, the least authoritative source. With it, v2 joins, v1 is defeated, v2 outranks the informal note under R3, and the result is `resolved` with winner `equipment_allowance_v2` and stale `equipment_allowance_v1`, whatever the critic listed.
 
@@ -189,6 +189,7 @@ A conflict is **resolved** only if exactly one side remains. If two or more rema
 | 15 | some | yes, but the critic did not list the superseding document | yes (retrieved, in force, names a listed source) | superseder `official`, other side lower | `resolved`, the superseder wins | Step 1 closure, R3 |
 | 16 | some | yes, every listed side superseded in a chain | yes | any | `resolved`, the last superseder wins, reason says the listed sources were superseded | Step 1 closure (D11) |
 | 17 | some | yes, every listed side superseded by different documents | yes | equal | `conflict_unresolved` | Step 1 closure, R5 |
+| 18 | some | yes, supersession loop (documents supersede each other, so every side is defeated) | yes | any | `conflict_unresolved`, reason names the loop | Step 1 |
 
 In rows 4 and 5, if authority levels are known and differ, R3 applies as in row 7.
 
@@ -208,6 +209,6 @@ The guiding principle: when metadata is unclear, an honest `conflict_unresolved`
 | D8 | Meaning of "stale" | Staleness only decides a conflict. `stale_source_ids` is informational, for the answer view and the trust report's freshness dimension. It never removes a document from the evidence. |
 | D9 | `needs_resolution` true with no contradictions | The resolver returns `conflict_unresolved` with an explanatory reason. The critic must not produce this combination. |
 | D10 | `unsupported_claims` | Ignored by the resolver. The orchestrator (T13) handles the case where every claim is unsupported (D5). The trust report (T18) shows partial citation support. |
-| D11 | Every listed side superseded | The conflict is moot and resolves in favor of the superseding document(s), and the reason says so. This follows from the closure rule in Step 1. Caveat: the resolver cannot see that a superseding document is silent on the question. Unsupported claims (D10) and the trust report catch that, not the resolver. |
+| D11 | Every listed side superseded | The conflict is moot and resolves in favor of the superseding document, if exactly one remains; if several different superseding documents remain, R3 and R5 apply (row 17). The reason says so. This follows from the closure rule in Step 1. Caveat: the resolver cannot see that a superseding document is silent on the question. Unsupported claims (D10) and the trust report catch that, not the resolver. |
 
 No questions are open at the time of writing.
