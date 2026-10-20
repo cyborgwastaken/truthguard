@@ -5,7 +5,16 @@ import pytest
 from truthguard_agent.ingestion import chunk_document, normalize_text
 from truthguard_agent.schemas import Document
 
-SENTENCE_BOUNDARY = re.compile(r"[.!?][\"')\]]*\s")
+SENTENCE_BOUNDARY = re.compile(r"([.!?][\"')\]]*)\s+(\S)")
+ABBREVIATION_BEFORE = re.compile(r"(?i)(?<![a-z])(dr|mr|mrs|ms|prof|sec|fig|vs)\.$")
+
+
+def has_sentence_boundary(text):
+    for m in SENTENCE_BOUNDARY.finditer(text):
+        if m.group(2).islower() or ABBREVIATION_BEFORE.search(text[: m.start(1) + 1]):
+            continue
+        return True
+    return False
 
 
 @pytest.mark.parametrize(
@@ -85,6 +94,12 @@ def test_one_line_document_is_one_chunk():
         # known abbreviations are not sentence ends, even before a capital letter or a digit
         ("Dr. Lee approved the plan. Next.", 15, [("Dr. Lee approved the plan.", 0, 26), ("Next.", 27, 32)]),
         ("See Fig. 3 for details. Next.", 15, [("See Fig. 3 for details.", 0, 23), ("Next.", 24, 29)]),
+        # ! and ? followed by a lowercase word are not sentence ends either
+        ("Wait! the door shut. Next.", 10, [("Wait! the door shut.", 0, 20), ("Next.", 21, 26)]),
+        # the abbreviation rule only applies to a period
+        ("I asked Dr! Then I left.", 15, [("I asked Dr!", 0, 11), ("Then I left.", 12, 24)]),
+        # a digit after the period does start a new sentence
+        ("It took 3 days. 14 more followed.", 15, [("It took 3 days.", 0, 15), ("14 more followed.", 16, 33)]),
         # "No." as an answer still ends a sentence
         (
             "Is it covered? No. Travel is booked.",
@@ -109,6 +124,9 @@ def test_one_line_document_is_one_chunk():
         "lowercase-after-period",
         "title-abbreviation",
         "abbreviation-before-digit",
+        "lowercase-after-bang-or-question",
+        "abbreviation-rule-only-for-period",
+        "digit-after-period-splits",
         "no-as-answer-still-splits",
         "indent-and-nbsp-trimmed",
     ],
@@ -129,11 +147,19 @@ def test_offsets_are_positions_in_normalized_content():
     assert normalize_text(raw)[22:44] == "Travel needs approval."
 
 
+@pytest.mark.parametrize("abbreviation", ["Dr", "Mr", "Mrs", "Ms", "Prof", "Sec", "Fig", "vs", "DR"])
+def test_listed_abbreviations_do_not_end_a_sentence(abbreviation):
+    sentence = "Ask %s. Lee today." % abbreviation
+    chunks = chunk_document(make_doc(sentence + " Next."), max_chars=15)
+    assert [c.text for c in chunks] == [sentence, "Next."]
+
+
 MESSY = (
     "Remote Work Policy  \r\n\r\n\r\n"
     "Employees may work remotely up to three days a week. Managers must approve each request.\r\n"
     "Exceptions need written sign-off!  \r\n\r\n"
     "Is travel covered? No. Travel is booked through the portal and reimbursed within 30 days.\r\n\r\n\r\n\r\n"
+    "Ask Dr. Lee about it, e.g. on Fridays. See Fig. 3 for the timeline. Wait! the door shut.\r\n\r\n"
     "A_single_token_sentence_that_is_much_longer_than_the_small_limits_used_in_this_test_run."
 )
 
@@ -147,7 +173,7 @@ def test_chunks_are_well_formed_for_any_limit(max_chars):
         assert normalized[c.start_offset : c.end_offset] == c.text
         assert c.text and c.text == c.text.strip()
         if len(c.text) > max_chars:  # only a lone sentence may exceed the limit
-            assert "\n\n" not in c.text and not SENTENCE_BOUNDARY.search(c.text)
+            assert "\n\n" not in c.text and not has_sentence_boundary(c.text)
     for previous, current in zip(chunks, chunks[1:]):
         assert previous.end_offset <= current.start_offset
     # no text is dropped or duplicated

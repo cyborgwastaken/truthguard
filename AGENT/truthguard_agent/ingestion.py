@@ -14,7 +14,7 @@ _PARAGRAPH = re.compile(r"[^\n]+(?:\n[^\n]+)*")
 # abbreviation before a capital letter still ends a sentence, which only cuts a long paragraph early.
 _SENTENCE_END = re.compile(r"([.!?][\"')\]]*)\s+")
 _WORD_BEFORE = re.compile(r"[A-Za-z]+$")
-_ABBREVIATIONS = frozenset(["dr", "mr", "mrs", "ms", "prof", "sec", "fig", "vs"])
+_ABBREVIATIONS = frozenset({"dr", "mr", "mrs", "ms", "prof", "sec", "fig", "vs"})
 
 
 def normalize_text(text: str) -> str:
@@ -28,9 +28,11 @@ def normalize_text(text: str) -> str:
 
 
 def _ends_sentence(text: str, match: re.Match) -> bool:
+    # text[match.end()] exists: paragraphs are stripped, so a match never reaches the end of one.
     if text[match.end()].islower():
         return False
     if match.group(1) == ".":
+        # look back at most 10 characters: the longest listed abbreviation has 4 letters
         word = _WORD_BEFORE.search(text, max(0, match.start() - 10), match.start())
         if word and word.group().lower() in _ABBREVIATIONS:
             return False
