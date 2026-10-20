@@ -58,7 +58,7 @@ After reading, give the human a short summary (what the product is, what the tic
 
 1. Check the ticket is **Ready** on the board, and that every ticket under "Depends on" is **Done** (merged to `main`). If not, tell the human it is blocked and stop. Do not stub out missing dependencies in the real code.
 2. `git checkout main && git pull`, then create a branch named `t<nn>-<few-words>`, e.g. `t03-database`. One ticket, one branch, one pull request.
-3. Ask the human to move the card to **In progress** (or do it if they ask and you have the access).
+3. The board updates itself: the card moves to **In progress** when the branch is first pushed, so the branch name must start with the ticket id (`t03-...`). Do not move cards by hand unless the human asks.
 4. If the ticket says an interface must be agreed first (function signature, response shape), propose it in a comment on the issue and wait for the answer before coding.
 
 ## Repo layout and where code goes
@@ -99,7 +99,7 @@ Do not add files at the repository root. `AGENT` must not import from `BACKEND` 
 - Commit small and often. Start every commit message with the ticket id: `T03: add Postgres compose file`.
 - **Do not add `Co-Authored-By` lines (or any AI attribution trailer) to commit messages** in this repository. That is a project-lead rule.
 - Open the PR from your branch with the title `T03: <ticket title>`. In the description include `Closes #<issue number>` plus what you did, how to check it, and open questions. Request review from `cyborgwastaken`. A screenshot is required for UI work.
-- Ask the human to move the card to **In review**. The project lead merges and moves it to **Done** after review.
+- The card moves to **In review** by itself when the PR is opened, provided the description contains `Closes #<issue number>` (never `Refs`, which deliberately moves nothing). The project lead merges; **Done** and the unlocking of dependent tickets follow automatically.
 - When review comments arrive, fix them on the same branch and push; do not open a new PR.
 
 ## Before you say "done" (checklist)
