@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "truthguard-agent"
 version = "0.1.0"
 description = "TruthGuard domain schemas, agents, orchestrator and resolution engine"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = ["pydantic>=2.6,<3", "groq>=1.7,<2"]
 
 [project.optional-dependencies]

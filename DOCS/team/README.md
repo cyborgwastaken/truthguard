@@ -52,7 +52,7 @@ Tickets are grouped into **waves**. Wave 1 first, then Wave 2, and so on. Within
 ## 4. One-time setup (do this once)
 
 1. Accept the GitHub invitation (check your email, or go to https://github.com/cyborgwastaken/truthguard/invitations).
-2. Install: **Git**, **Python 3.9 or newer**, **Node.js 20.19 or newer** (frontend people), and **VS Code**.
+2. Install: **Git**, **Python 3.12 or newer**, **Node.js 20.19 or newer** (frontend people), and **VS Code**.
 3. Tell Git who you are:
    ```bash
    git config --global user.name "Your Name"

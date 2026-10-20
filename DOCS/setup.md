@@ -7,7 +7,7 @@ Follow this once to get TruthGuard running on your computer. It takes about 15 m
 | Tool | Version | Check with | Get it |
 |---|---|---|---|
 | Git | any recent | `git --version` | https://git-scm.com |
-| Python | 3.9 or newer | `python3 --version` | https://www.python.org |
+| Python | 3.12 or newer | `python3 --version` | https://www.python.org |
 | Docker Desktop | any recent | `docker --version` | https://www.docker.com/products/docker-desktop |
 | Node.js | 20.19 or newer (only for the frontend) | `node --version` | https://nodejs.org |
 
