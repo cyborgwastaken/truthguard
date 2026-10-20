@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from app.db.models import DocumentRow
 from app.db.search import PostgresPassageStore
 from tests.helpers import add_document
 from truthguard_agent.retriever import retrieve
@@ -142,3 +143,15 @@ def test_retrieve_over_postgres_follows_a_chain_and_keeps_scores_apart(db):
     passages = retrieve("How many days per week can employees work remotely?", PostgresPassageStore(db))
     assert ids(passages) == ["v1::chunk_000", "v2::chunk_000", "v3::chunk_000"]
     assert [p.score is None for p in passages] == [False, True, True]
+
+
+def test_search_ignores_a_nul_character_in_the_question(db):
+    add_document(db, "d1", "Employees may work remotely.")
+    assert ids(PostgresPassageStore(db).search("remotely\x00 days", limit=5)) == ["d1::chunk_000"]
+
+
+def test_search_returns_the_content_hash_stored_with_the_document(db):
+    add_document(db, "d1", "Employees may work remotely.")
+    db.get(DocumentRow, "d1").content_hash = "f" * 64
+    db.flush()
+    assert PostgresPassageStore(db).search("remotely", limit=5)[0].document.content_hash == "f" * 64

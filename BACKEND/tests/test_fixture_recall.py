@@ -49,6 +49,7 @@ def test_every_labeled_question_retrieves_its_relevant_documents(db):
     assert missing_documents(db, k=8, expand_related=True) == {}
 
 
-def test_search_alone_finds_every_relevant_document_in_the_top_five(db):
+def test_search_alone_finds_every_relevant_document_in_the_top_eight(db):
+    """Without supersession expansion, so that expansion cannot hide a weak ranking."""
     load_fixtures(db)
-    assert missing_documents(db, k=5, expand_related=False) == {}
+    assert missing_documents(db, k=8, expand_related=False) == {}

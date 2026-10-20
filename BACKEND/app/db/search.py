@@ -1,9 +1,9 @@
 """Postgres implementation of the AGENT's PassageStore (see truthguard_agent.retriever)."""
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
-from sqlalchemy import Text, cast, collate, func, or_, select
+from sqlalchemy import Text, cast, collate, func, select, union
 from sqlalchemy.dialects.postgresql import TSQUERY
 from sqlalchemy.orm import Session, aliased
 
@@ -12,7 +12,7 @@ from truthguard_agent.schemas import Chunk, Document, RetrievedPassage
 from .models import ChunkRow, DocumentRow
 
 
-def _passage(chunk: ChunkRow, document: DocumentRow, score) -> RetrievedPassage:
+def _passage(chunk: ChunkRow, document: DocumentRow, score: Optional[float]) -> RetrievedPassage:
     return RetrievedPassage(
         chunk=Chunk(
             chunk_id=chunk.chunk_id,
@@ -51,6 +51,8 @@ class PostgresPassageStore:
         """
         if limit < 1:
             raise ValueError("limit must be at least 1")
+        # Postgres text cannot hold a NUL character, and one would abort the whole transaction.
+        query = query.replace("\x00", " ")
         tsquery = cast(
             func.replace(cast(func.plainto_tsquery("english", query), Text), " & ", " | "), TSQUERY
         )
@@ -69,15 +71,19 @@ class PostgresPassageStore:
         given = {doc_id for doc_id in document_ids if doc_id is not None}
         if not given:
             return []
-        given_row = aliased(DocumentRow)
+        given_row, newer_row = aliased(DocumentRow), aliased(DocumentRow)
         older = select(given_row.supersedes_document_id).where(
             given_row.document_id.in_(given), given_row.supersedes_document_id.is_not(None)
         )
+        newer = select(newer_row.document_id).where(newer_row.supersedes_document_id.in_(given))
+        # A UNION of the two lookups, not an OR inside one WHERE: the OR stops Postgres from using the
+        # indexes on documents.supersedes_document_id and chunks.document_id.
+        related = union(older, newer).subquery()
         rows = self._session.execute(
             select(ChunkRow, DocumentRow)
             .join(DocumentRow, DocumentRow.document_id == ChunkRow.document_id)
             .where(
-                or_(DocumentRow.document_id.in_(older), DocumentRow.supersedes_document_id.in_(given)),
+                DocumentRow.document_id.in_(select(related)),
                 DocumentRow.document_id.not_in(given),
             )
             .order_by(collate(DocumentRow.document_id, "C"), ChunkRow.chunk_index)
