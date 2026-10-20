@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import health
+from .api import documents, health
 from .config import settings
 
 app = FastAPI(title="TruthGuard API", version="0.1.0")
@@ -14,3 +14,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(documents.router)

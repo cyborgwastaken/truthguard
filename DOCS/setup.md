@@ -80,7 +80,17 @@ cd BACKEND
 uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000/health. It should show `{"status":"ok"}`. Open http://localhost:8000/docs to see all API endpoints and try them out. Stop the server with `Ctrl+C`.
+Open http://localhost:8000/health. It should show `{"status":"ok"}`. Open http://localhost:8000/docs to see all API endpoints and try them out.
+
+**Load the sample documents** (26 fictional policy documents from `AGENT/datasets/fixtures/`). With the backend running, in a second terminal from the repo root:
+
+```bash
+python3 OPS/load_fixtures.py
+```
+
+It prints `26 fixtures: 26 created, ...`. Running it again is safe (`0 created, 26 unchanged`). Check with http://localhost:8000/documents. The tests never touch this data: each test starts from an empty database inside a transaction that is rolled back.
+
+Stop the server with `Ctrl+C`.
 
 ## 8. Run the frontend
 
