@@ -182,11 +182,19 @@ def test_one_pr_can_close_several_tickets():
     assert statuses(board)["T06"] == statuses(board)["T07"] == "In review"
 
 
-def test_merging_an_already_done_ticket_does_not_unlock_again():
+def test_merging_a_ticket_that_is_already_done_still_unlocks_dependents():
+    """The board's built-in "Pull request merged" workflow sets Done before the script runs."""
+    board = chain()
+    board.tickets[7].status = "Done"  # already moved by the built-in workflow
+    bs.on_pull_request(board, "closed", pr(merged=True))
+    assert statuses(board)["T06"] == "Done"
+    assert statuses(board)["T11"] == "Ready"  # T04 and T06 are done
+
+
+def test_closing_without_merging_never_unlocks():
     board = chain()
     board.tickets[7].status = "Done"
-    board.tickets[12].status = "Backlog"  # something odd: must not be unlocked by a no-op merge event
-    bs.on_pull_request(board, "closed", pr(merged=True))
+    bs.on_pull_request(board, "closed", pr(merged=False))
     assert statuses(board)["T11"] == "Backlog"
 
 
