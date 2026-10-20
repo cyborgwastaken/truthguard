@@ -1,5 +1,6 @@
 import hashlib
 import re
+from datetime import date
 
 import pytest
 
@@ -244,9 +245,14 @@ def test_ingest_document_keeps_the_metadata_it_was_given():
             title="Amendment",
             content="Text.",
             version="2",
+            created_at=date(2026, 10, 1),
+            effective_date=date(2026, 10, 15),
             authority_level=AuthorityLevel.OFFICIAL,
             supersedes_document_id="d1",
+            source="hr-portal",
         )
     )
     assert (doc.document_id, doc.title, doc.version) == ("d2", "Amendment", "2")
+    assert doc.created_at == date(2026, 10, 1) and doc.effective_date == date(2026, 10, 15)
     assert doc.authority_level == AuthorityLevel.OFFICIAL and doc.supersedes_document_id == "d1"
+    assert doc.source == "hr-portal"

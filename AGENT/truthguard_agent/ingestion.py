@@ -65,8 +65,9 @@ def _units(text: str, max_chars: int) -> List[Tuple[int, int]]:
 def ingest_document(doc_in: DocumentIn, max_chars: int = 800) -> Tuple[Document, List[Chunk]]:
     """Build the Document to store (with its content hash) and its chunks.
 
-    The hash is the SHA-256 of the raw content, so any change to the uploaded file changes it. A hash
-    supplied by the caller is ignored and recomputed.
+    The hash is the SHA-256 of the raw content, exactly as uploaded: a file that differs only in line
+    endings or trailing spaces gets a different hash. A hash supplied by the caller is ignored and
+    recomputed. The result is a plain Document, whatever subclass of DocumentIn came in.
     """
     doc = Document(**doc_in.model_dump(exclude={"content_hash"}))
     return doc, chunk_document(doc, max_chars)
