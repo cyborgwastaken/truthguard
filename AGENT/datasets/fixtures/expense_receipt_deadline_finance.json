@@ -1,0 +1,11 @@
+{
+  "document_id": "expense_receipt_deadline_finance",
+  "title": "Expense Receipt Submission Deadline — Finance Circular",
+  "version": "1",
+  "created_at": "2026-03-01",
+  "effective_date": "2026-03-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "Finance Department",
+  "content": "Acme Corp Finance Department hereby states that all expense reimbursement claims must be accompanied by original receipts and submitted within 14 days of the transaction date. Claims submitted after 14 days will not be processed regardless of the amount or reason. This deadline applies to all employees across all divisions. Finance reserves the right to reject any claim that does not comply with this submission window. This circular is effective immediately and takes precedence in the event of any ambiguity in divisional policies regarding submission timelines."
+}

@@ -1,0 +1,11 @@
+{
+  "document_id": "sick_leave_policy",
+  "title": "Sick Leave Policy",
+  "version": "1",
+  "created_at": "2025-08-01",
+  "effective_date": "2025-08-01",
+  "authority_level": "official",
+  "supersedes_document_id": null,
+  "source": "HR Department",
+  "content": "Acme Corp provides all full-time employees with 10 days of paid sick leave per calendar year. Sick leave does not accrue; unused days do not carry over and are not paid out upon separation. Employees must notify their manager as early as possible on any day they are unable to attend work due to illness. For absences exceeding three consecutive days, a medical certificate from a registered practitioner must be submitted. Part-time employees receive sick leave on a pro-rata basis proportional to their contracted hours. Sick leave cannot be used for elective medical procedures scheduled in advance; annual leave must be used for such purposes."
+}
