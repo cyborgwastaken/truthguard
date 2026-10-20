@@ -1,9 +1,10 @@
+import hashlib
 import re
 
 import pytest
 
-from truthguard_agent.ingestion import chunk_document, normalize_text
-from truthguard_agent.schemas import Document
+from truthguard_agent.ingestion import chunk_document, ingest_document, normalize_text
+from truthguard_agent.schemas import AuthorityLevel, Document, DocumentIn
 
 SENTENCE_BOUNDARY = re.compile(r"([.!?][\"')\]]*)\s+(\S)")
 ABBREVIATION_BEFORE = re.compile(r"(?i)(?<![a-z])(dr|mr|mrs|ms|prof|sec|fig|vs)\.$")
@@ -195,3 +196,57 @@ def test_whitespace_only_document_has_no_chunks():
 def test_max_chars_must_be_positive(bad):
     with pytest.raises(ValueError):
         chunk_document(make_doc("text"), max_chars=bad)
+
+
+RAW_POLICY = "Remote Work Policy  \r\n\r\nEmployees may work remotely.\r\n\r\nTravel needs approval.  "
+
+
+def test_ingest_document_stores_the_sha256_of_the_raw_content():
+    doc, _ = ingest_document(DocumentIn(document_id="d1", title="T", content=RAW_POLICY))
+    assert doc.content_hash == hashlib.sha256(RAW_POLICY.encode("utf-8")).hexdigest()
+    assert doc.content == RAW_POLICY
+
+
+def test_ingest_document_hash_detects_a_changed_file_but_ignores_metadata():
+    base = ingest_document(DocumentIn(document_id="d1", title="T", content=RAW_POLICY))[0]
+    renamed = ingest_document(DocumentIn(document_id="d2", title="Other", content=RAW_POLICY, version="2"))[0]
+    edited = ingest_document(DocumentIn(document_id="d1", title="T", content=RAW_POLICY + "!"))[0]
+    assert renamed.content_hash == base.content_hash
+    assert edited.content_hash != base.content_hash
+
+
+def test_ingest_document_recomputes_a_hash_supplied_by_the_caller():
+    forged = Document(document_id="d1", title="T", content=RAW_POLICY, content_hash="0" * 64)
+    doc, _ = ingest_document(forged)
+    assert doc.content_hash == hashlib.sha256(RAW_POLICY.encode("utf-8")).hexdigest()
+
+
+def test_ingest_document_returns_the_chunks_of_the_normalized_content():
+    _, chunks = ingest_document(DocumentIn(document_id="d1", title="T", content=RAW_POLICY), max_chars=30)
+    assert [(c.chunk_id, c.text, c.start_offset, c.end_offset) for c in chunks] == [
+        ("d1::chunk_000", "Remote Work Policy", 0, 18),
+        ("d1::chunk_001", "Employees may work remotely.", 20, 48),
+        ("d1::chunk_002", "Travel needs approval.", 50, 72),
+    ]
+
+
+def test_ingest_document_keeps_missing_metadata_unknown():
+    doc, _ = ingest_document(DocumentIn(document_id="d1", title="T", content="Text."))
+    assert doc.version is None and doc.created_at is None and doc.effective_date is None
+    assert doc.supersedes_document_id is None and doc.source is None
+    assert doc.authority_level == AuthorityLevel.UNKNOWN
+
+
+def test_ingest_document_keeps_the_metadata_it_was_given():
+    doc, _ = ingest_document(
+        DocumentIn(
+            document_id="d2",
+            title="Amendment",
+            content="Text.",
+            version="2",
+            authority_level=AuthorityLevel.OFFICIAL,
+            supersedes_document_id="d1",
+        )
+    )
+    assert (doc.document_id, doc.title, doc.version) == ("d2", "Amendment", "2")
+    assert doc.authority_level == AuthorityLevel.OFFICIAL and doc.supersedes_document_id == "d1"

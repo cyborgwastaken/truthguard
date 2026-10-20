@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import List, Tuple
 
-from .schemas import Chunk, Document, make_chunk_id
+from .schemas import Chunk, Document, DocumentIn, make_chunk_id
 
 _BLANK_RUN = re.compile(r"\n{3,}")
 _PARAGRAPH = re.compile(r"[^\n]+(?:\n[^\n]+)*")
@@ -60,6 +60,16 @@ def _units(text: str, max_chars: int) -> List[Tuple[int, int]]:
         if position < end:
             spans.append((position, end))
     return spans
+
+
+def ingest_document(doc_in: DocumentIn, max_chars: int = 800) -> Tuple[Document, List[Chunk]]:
+    """Build the Document to store (with its content hash) and its chunks.
+
+    The hash is the SHA-256 of the raw content, so any change to the uploaded file changes it. A hash
+    supplied by the caller is ignored and recomputed.
+    """
+    doc = Document(**doc_in.model_dump(exclude={"content_hash"}))
+    return doc, chunk_document(doc, max_chars)
 
 
 def chunk_document(doc: Document, max_chars: int = 800) -> List[Chunk]:
