@@ -36,7 +36,7 @@ def resolve(passages: List[RetrievedPassage], critic: CriticResult, as_of: date)
 | `effective_date` | `Document` | R2 |
 | `authority_level` | `Document` | R3 |
 | `contradictions[].source_ids` | `CriticResult` | which documents are in conflict |
-| `needs_resolution` | `CriticResult` | whether a conflict exists |
+| `needs_resolution` | `CriticResult` | only to detect an inconsistent critic result (Step 0) |
 | `as_of` | caller (required) | R2 |
 
 `created_at`, `version` and `title` are never used to rank documents.
@@ -68,7 +68,10 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 - **Inputs:** `supersedes_document_id`, `effective_date`, `as_of`, `authority_level` of B.
 - **Outcome:** `resolved`, winner B, stale A. Reason names B, A, the rule and B's effective date.
 - **Who can supersede:** an `official` document can supersede any document. An `unknown`-authority document can supersede only a document that is not `official`. A `draft` or `informal` document never supersedes anything. In every case where the supersession is ignored, the reason says why, even if the document names a `supersedes_document_id` (decision D2).
-- **Chains:** if C supersedes B and B supersedes A, a retrieved A is stale if B or C is in force. If C is not yet in force, B still stands over A.
+- **Chains:** a document A is stale only if a document that **names A directly** is in force and allowed to supersede under D2. Staleness is not inherited. Take C supersedes B and B supersedes A:
+  - B in force: A is stale, whether or not C is in force. A stale B still supersedes A, because B names A.
+  - B not in force (effective date unknown or in the future): A is **not** stale, even if C is in force, because C never names A.
+- **Where supersession is looked up:** among all retrieved passages, not only among the sources of one conflict.
 - **A supersession target that is not in the corpus** (the pointed-to ID was never ingested, or was not retrieved) is ignored. It cannot make anything stale because there is nothing to compare. Mention it in the reason only if it affects the outcome.
 - **Example:**
   - `remote_policy_v1`: official, effective 2026-01-15, "up to five days remote".
@@ -94,6 +97,7 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 
 - **Rule:** if both sides of a conflict have a known authority level and the levels differ, the higher one wins. Ranking: `official` above `draft` and `informal`. `draft` and `informal` rank equal to each other (decision D3).
 - **Applies only when** there is no in-force supersession (R1 takes priority) and both levels are known.
+- **More than two sides:** a side is outranked only if another remaining side has a known, higher level. `unknown` neither outranks nor is outranked. Example: official X, draft Y, unknown U: Y is outranked by X; X and U remain, so the conflict is unresolved.
 - **`unknown` gives no ranking.** If either side is `unknown`, R3 does not fire. An `unknown` document is not treated as lower authority.
 - **Outcome:** `resolved`, winner the higher-authority document. Stale list stays empty, because authority does not make a document outdated. Reason names both documents, both levels and the rule.
 - **Example:**
@@ -141,20 +145,24 @@ When rules disagree, the one with the lower number wins. Rules R1 to R5 are appl
 
 ## 5. How the rules fit together
 
-**Step 0: no conflict.**
+**Step 0: before any conflict is judged.**
 - If `passages` is empty, R6 applies and the result is `insufficient_evidence`.
-- If there are no contradictions in `critic.contradictions` and `needs_resolution` is false, the result is `resolved` with reason "No contradiction was detected among the retrieved sources."
-- Stale sources can still appear without a contradiction. If a retrieved document is superseded by an in-force retrieved document under R1, list it in `stale_source_ids`, and do not use it as a winner.
+- **The `contradictions` list decides whether a conflict exists**, not `needs_resolution`.
+  - `contradictions` is empty and `needs_resolution` is false: the result is `resolved` with reason "No contradiction was detected among the retrieved sources."
+  - `contradictions` is empty but `needs_resolution` is true: the critic result is inconsistent, because a flagged conflict must come with evidence. The result is `conflict_unresolved`, `winning_source_ids` is empty, and the reason says the critic reported a conflict without any contradiction to resolve, so no source can be preferred (decision D9). The critic (T12) must not produce this combination.
+  - `contradictions` is not empty but `needs_resolution` is false: the contradictions are judged anyway.
+- **Stale sources are computed once, over all retrieved passages:** every retrieved document that is superseded by an in-force retrieved document under R1 goes in `stale_source_ids`, whether or not it appears in a contradiction. Staleness decides a conflict only, it does not remove a document from the evidence (decision D8).
+- **`unsupported_claims` is ignored.** The resolver judges conflicts between sources, not whether claims are backed. Status never changes because of it (decision D10).
 
 **Step 1: per conflict.** For each contradiction in `critic.contradictions`, look only at the documents in its `source_ids`:
 
-1. R1 and R2: find any in-force supersession among them. A document that is superseded by another conflicting document in force is defeated.
-2. If there is no in-force supersession between two sides, R3: compare known authority levels.
+1. R1 and R2: find any in-force supersession among them. A document that is superseded by an in-force retrieved document (R1) is defeated.
+2. Among the sides that remain, R3: drop any side outranked by another remaining side with a known, higher authority level.
 3. If still no single remaining side, R5.
 
 A conflict is **resolved** only if exactly one position remains undefeated. If two or more remain, it is unresolved.
 
-**Step 2: combine.** The overall status is `resolved` only if every conflict is resolved. If any conflict is unresolved, the overall status is `conflict_unresolved`, and the reason covers the unresolved ones. `winning_source_ids` lists winners of resolved conflicts. `stale_source_ids` lists every defeated document that was superseded.
+**Step 2: combine.** The overall status is `resolved` only if every conflict is resolved. If any conflict is unresolved, the overall status is `conflict_unresolved`, and the reason covers the unresolved ones. `winning_source_ids` lists winners of resolved conflicts. `stale_source_ids` is the list computed in Step 0, not a per-conflict list.
 
 ## 6. Outcome table
 
@@ -171,12 +179,15 @@ A conflict is **resolved** only if exactly one position remains undefeated. If t
 | 9 | some | yes | none | one or both `unknown` | `conflict_unresolved` | R3, R5, R7 |
 | 10 | some | yes, differs only by date | none | equal | `conflict_unresolved` | R4, R5 |
 | 11 | some | several, some resolved and some not | mixed | mixed | `conflict_unresolved` | Step 2 |
+| 12 | some | yes | named by an `unknown`-authority document against an `official` one | official vs unknown | `conflict_unresolved` | R1 (D2), R3, R5 |
+| 13 | some | `contradictions` empty, `needs_resolution` true | n/a | n/a | `conflict_unresolved` | Step 0 (D9) |
+| 14 | some | no | yes (B in force, names A) | any | `resolved`, A in `stale_source_ids` | Step 0 (D8) |
 
 In rows 4 and 5, if authority levels are known and differ, R3 applies as in row 7.
 
 ## 7. Decisions and questions for the lead
 
-The guiding principle: when metadata is unclear, an honest `conflict_unresolved` is better than a confident wrong `resolved`. The decisions below follow from it. They are proposed here and @cyborgwastaken is asked to confirm them in the PR.
+The guiding principle: when metadata is unclear, an honest `conflict_unresolved` is better than a confident wrong `resolved`. The decisions below follow from it. D1 to D7 were confirmed by @cyborgwastaken in the T05 review. D8 to D10 came from that review.
 
 | ID | Topic | Decision |
 |---|---|---|
@@ -187,5 +198,10 @@ The guiding principle: when metadata is unclear, an honest `conflict_unresolved`
 | D5 | Irrelevant retrieved passages | The resolver returns `insufficient_evidence` only for empty passages. The orchestrator (T13) maps "every claim unsupported" to `insufficient_evidence` before calling the resolver. |
 | D6 | Authority versus supersession | An in-force supersession beats authority (R1 before R3). D2 prevents a lower-authority document from abusing this. |
 | D7 | Superseding document not retrieved | The resolver only uses retrieved passages. The retriever (T07) must pull in documents that supersede or are superseded by retrieved ones. |
+| D8 | Meaning of "stale" | Staleness only decides a conflict. `stale_source_ids` is informational, for the answer view and the trust report's freshness dimension. It never removes a document from the evidence. |
+| D9 | `needs_resolution` true with no contradictions | The resolver returns `conflict_unresolved` with an explanatory reason. The critic must not produce this combination. |
+| D10 | `unsupported_claims` | Ignored by the resolver. The orchestrator (T13) handles the case where every claim is unsupported (D5). The trust report (T18) shows partial citation support. |
 
-No questions are open at the time of writing. The lead is asked to confirm D1 to D7 in the PR.
+Question for the lead (from the review of this page):
+
+1. If every side of a conflict is defeated by supersession (for example two superseded documents that disagree, and the in-force document is silent), I propose the conflict is moot: it counts as resolved in favor of the superseding document(s), and the reason says so. The safer alternative is `conflict_unresolved`. Which one?
