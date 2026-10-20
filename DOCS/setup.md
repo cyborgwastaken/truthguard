@@ -9,7 +9,7 @@ Follow this once to get TruthGuard running on your computer. It takes about 15 m
 | Git | any recent | `git --version` | https://git-scm.com |
 | Python | 3.9 or newer | `python3 --version` | https://www.python.org |
 | Docker Desktop | any recent | `docker --version` | https://www.docker.com/products/docker-desktop |
-| Node.js | 20 or newer (only for the frontend) | `node --version` | https://nodejs.org |
+| Node.js | 20.19 or newer (only for the frontend) | `node --version` | https://nodejs.org |
 
 **Docker Desktop must be running** (open the app and wait until it says it is running) before step 4.
 
@@ -84,7 +84,7 @@ Open http://localhost:8000/health. It should show `{"status":"ok"}`. Open http:/
 
 ## 8. Run the frontend
 
-Once the frontend has been added (ticket T04 merged):
+Start the backend (step 7) in one terminal, then in a second terminal:
 
 ```bash
 cd FRONTEND
@@ -92,7 +92,7 @@ npm install
 npm run dev
 ```
 
-Open the address it prints (usually http://localhost:5173).
+Open http://localhost:5173. The top bar should show **Backend: connected** (green dot). It shows **Backend: offline** (red dot) if the backend is not running. More detail in [FRONTEND/README.md](../FRONTEND/README.md).
 
 ## 9. Your daily routine
 
