@@ -1,14 +1,16 @@
 """Baseline RAG: retrieve passages, ask the model to answer, return a FinalAnswer.
 
-No conflict checking and no resolver. This is the deliberate \"before\" picture that the benchmark
-compares against the full TruthGuard pipeline.
+No conflict checking and no resolver. This is the deliberate "before" picture that the benchmark
+compares against the full TruthGuard pipeline. It uses plain search only (expand_related=False): pulling
+in the documents that supersede or are superseded by a hit is part of what TruthGuard adds, so the
+baseline must not get it for free.
 """
 from __future__ import annotations
 
 import uuid
 from typing import Optional
 
-from .llm import LLMClient, LLMError
+from .llm import LLMClient
 from .retriever import PassageStore, retrieve
 from .schemas import AnswerStatus, Claim, ClaimStatus, EvidenceRef, FinalAnswer
 from .synthesizer import synthesize
@@ -26,9 +28,10 @@ def answer_baseline(
     """Retrieve passages and ask the model to answer from them. No critic, no resolver.
 
     Returns a FinalAnswer with:
-    - status=resolved   when the model produced at least one cited claim.
-    - status=insufficient_evidence  when nothing was retrieved, or the model
-      produced no usable reply after its allowed attempts.
+    - status=resolved  when the model produced at least one cited claim.
+    - status=insufficient_evidence  when nothing was retrieved, or the model answered but made no claim.
+    - status=verification_failed  when the model call failed or gave no usable reply after its allowed
+      attempts. A failure is not an abstention: the benchmark counts the two separately.
 
     conflicts_detected is always 0: the baseline never checks for conflicts.
     That is exactly the weakness the benchmark is designed to measure.
@@ -37,34 +40,32 @@ def answer_baseline(
         raise ValueError("question must not be blank")
 
     aid = answer_id or str(uuid.uuid4())
-    passages = retrieve(question, store, k=k, expand_related=True)
+    passages = retrieve(question, store, k=k, expand_related=False)
 
-    if not passages:
+    def no_answer(status: AnswerStatus, reason: str) -> FinalAnswer:
         return FinalAnswer(
             answer_id=aid,
             question=question,
             answer="",
-            status=AnswerStatus.INSUFFICIENT_EVIDENCE,
+            status=status,
             citations=[],
             conflicts_detected=0,
-            resolution_reason="No passages were retrieved for this question.",
+            resolution_reason=reason,
             model_version=llm.model_name,
             prompt_version=BASELINE_VERSION,
         )
 
+    if not passages:
+        return no_answer(AnswerStatus.INSUFFICIENT_EVIDENCE, "No passages were retrieved for this question.")
+
     result = synthesize(question, passages, llm)
 
-    if not result.ok or not result.claims:
-        return FinalAnswer(
-            answer_id=aid,
-            question=question,
-            answer="",
-            status=AnswerStatus.INSUFFICIENT_EVIDENCE,
-            citations=[],
-            conflicts_detected=0,
-            resolution_reason=result.failure_reason or "The model produced no usable answer.",
-            model_version=llm.model_name,
-            prompt_version=BASELINE_VERSION,
+    if not result.ok:
+        return no_answer(AnswerStatus.VERIFICATION_FAILED, result.failure_reason or "The model call failed.")
+    if not result.claims:
+        return no_answer(
+            AnswerStatus.INSUFFICIENT_EVIDENCE,
+            " ".join(result.caveats) or "The model produced no usable answer.",
         )
 
     # Build a human-readable answer from the claims.
@@ -72,27 +73,27 @@ def answer_baseline(
     if result.caveats:
         answer_text += " Note: " + " ".join(result.caveats)
 
-    # Collect unique citations from all claims.
+    # Unique citations from all claims. The synthesizer only returns chunk ids that were retrieved, so
+    # the document of each one is looked up in the passages (not guessed from the chunk id's spelling).
+    document_of = {p.chunk.chunk_id: p.document.document_id for p in passages}
     seen_chunk_ids: set = set()
     citations = []
     for synth_claim in result.claims:
         for chunk_id in synth_claim.citation_chunk_ids:
             if chunk_id not in seen_chunk_ids:
                 seen_chunk_ids.add(chunk_id)
-                # source_id is the document_id part before "::chunk_"
-                source_id = chunk_id.split("::chunk_")[0]
-                citations.append(EvidenceRef(source_id=source_id, chunk_id=chunk_id))
+                citations.append(EvidenceRef(source_id=document_of[chunk_id], chunk_id=chunk_id))
 
-    # Wrap synthesized claims into schema Claim objects.
+    # Claim ids are derived from the answer id, so the same run gives the same ids (benchmark traceability).
     claims = [
         Claim(
-            claim_id=str(uuid.uuid4()),
+            claim_id="%s::c%d" % (aid, number),
             answer_id=aid,
             text=c.text,
             claim_type="factual",
             status=ClaimStatus.UNVERIFIED,
         )
-        for c in result.claims
+        for number, c in enumerate(result.claims, start=1)
     ]
 
     return FinalAnswer(
