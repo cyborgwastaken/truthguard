@@ -4,6 +4,33 @@ import { listDocuments, uploadDocument, ApiError } from '../../api/client'
 
 const AUTHORITY_OPTIONS: AuthorityLevel[] = ['official', 'draft', 'informal', 'unknown']
 
+// The pattern and limits mirror DocumentCreate in BACKEND/app/schemas/documents.py, so mistakes are
+// caught here with a clear message; the server still checks everything.
+const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/
+const ID_RULE = 'may contain only letters, digits, "_", "." and "-", and must start with a letter or digit'
+const MAX = { id: 200, title: 500, version: 64, content: 1_000_000 }
+
+function validate(form: DocumentCreate): string | null {
+  if (!form.document_id || !form.title || !form.content) {
+    return 'Document ID, title and content are required.'
+  }
+  if (!ID_PATTERN.test(form.document_id) || form.document_id.length > MAX.id) {
+    return `Document ID ${ID_RULE} (at most ${MAX.id} characters).`
+  }
+  if (form.supersedes_document_id) {
+    if (!ID_PATTERN.test(form.supersedes_document_id) || form.supersedes_document_id.length > MAX.id) {
+      return `Supersedes document ID ${ID_RULE} (at most ${MAX.id} characters).`
+    }
+    if (form.supersedes_document_id === form.document_id) return 'A document cannot supersede itself.'
+  }
+  if (form.title.length > MAX.title) return `Title is too long (at most ${MAX.title} characters).`
+  if (form.version && form.version.length > MAX.version) {
+    return `Version is too long (at most ${MAX.version} characters).`
+  }
+  if (form.content.length > MAX.content) return 'Content is too long (at most 1,000,000 characters).'
+  return null
+}
+
 function formatDate(val: string | null): string {
   return val ?? 'unknown'
 }
@@ -117,8 +144,9 @@ function UploadForm({ onUploaded }: UploadFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.document_id || !form.title || !form.content) {
-      setError('Document ID, title and content are required.')
+    const problem = validate(form as DocumentCreate)
+    if (problem) {
+      setError(problem)
       return
     }
     setSubmitting(true)
@@ -295,28 +323,50 @@ export function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  // For retry and for the refresh after an upload, which should not flash the spinner.
+  const fetchDocs = useCallback(async () => {
     try {
-      const result = await listDocuments()
-      setDocs(result)
+      setDocs(await listDocuments())
+      setError(null)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load documents.')
+      setError(err instanceof ApiError ? err.message : 'the backend could not be reached.')
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  // The first load. Loading starts true; state is only set in the callbacks, and not at all once the
+  // page has been left.
+  useEffect(() => {
+    let ignore = false
+    listDocuments()
+      .then((result) => {
+        if (!ignore) setDocs(result)
+      })
+      .catch((err) => {
+        if (!ignore) setError(err instanceof ApiError ? err.message : 'the backend could not be reached.')
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  function retry() {
+    setLoading(true)
+    setError(null)
+    void fetchDocs()
+  }
 
   function handleUploaded(doc: DocumentSummary) {
-    // optimistic update then reload to get accurate chunk_count
+    // show the new row at once, then refresh for the accurate list
     setDocs((prev) => {
       const idx = prev.findIndex((d) => d.document_id === doc.document_id)
       return idx >= 0 ? prev.map((d, i) => (i === idx ? doc : d)) : [doc, ...prev]
     })
-    load()
+    void fetchDocs()
   }
 
   return (
@@ -334,7 +384,7 @@ export function DocumentsPage() {
           <span className="doc-count muted">({docs.length})</span>
         )}
       </h2>
-      <DocumentTable docs={docs} loading={loading} error={error} onRetry={load} />
+      <DocumentTable docs={docs} loading={loading} error={error} onRetry={retry} />
     </section>
   )
 }

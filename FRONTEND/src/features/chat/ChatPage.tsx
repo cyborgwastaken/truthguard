@@ -31,13 +31,17 @@ type Message = UserMessage | AnswerMessage | ErrorMessage | LoadingMessage
 
 function AnswerBubble({ answer }: { answer: FinalAnswer }) {
   const isInsufficient = answer.status === 'insufficient_evidence'
+  // A failed verification has no answer text; say so instead of showing an empty bubble.
+  const failedWithoutText = answer.status === 'verification_failed' && !answer.answer.trim()
   return (
     <div className="msg-bubble msg-answer">
       <StatusBadge status={answer.status} />
       <p className="answer-text">
         {isInsufficient
           ? 'The documents don\'t contain enough information to answer this question.'
-          : answer.answer}
+          : failedWithoutText
+            ? 'The system could not verify an answer to this question. Please try again.'
+            : answer.answer}
       </p>
       {answer.resolution_reason && (
         <p className="answer-reason muted">

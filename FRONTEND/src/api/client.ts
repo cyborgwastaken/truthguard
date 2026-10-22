@@ -12,13 +12,31 @@ export class ApiError extends Error {
   }
 }
 
+/** FastAPI sends `detail` as a string for 404/409 and as a list of { loc, msg } objects for 422. */
+export function formatDetail(detail: unknown): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === 'object' && 'msg' in item) {
+          const { loc, msg } = item as { loc?: unknown; msg: unknown }
+          const field = Array.isArray(loc) ? loc.filter((part) => part !== 'body').join('.') : ''
+          return field ? `${field}: ${String(msg)}` : String(msg)
+        }
+        return String(item)
+      })
+      .join('; ')
+  }
+  return ''
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, init)
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`
     try {
       const body = await response.json()
-      if (body?.detail) detail = String(body.detail)
+      detail = formatDetail(body?.detail) || detail
     } catch { /* ignore */ }
     throw new ApiError(response.status, detail)
   }
