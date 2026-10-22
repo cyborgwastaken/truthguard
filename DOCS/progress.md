@@ -9,18 +9,18 @@ python3 OPS/github/update_progress.py
 The notes section at the bottom is written by hand: decisions, reasons and open questions.
 
 <!-- BEGIN GENERATED (OPS/github/update_progress.py) -->
-## Status (generated 2026-10-20)
+## Status (generated 2026-10-22)
 
-**6 of 32 tickets done.** Done 6 · In review 0 · In progress 1 · Ready 2 · Backlog 23
+**12 of 32 tickets done.** Done 12 · In review 0 · In progress 0 · Ready 2 · Backlog 18
 
 ### Ready to start
 
-- #7 T06: POST/GET /documents (@cyborgwastaken)
-- #10 T09: Resolver engine (@yashdiwan12)
+- #13 T12: Critic agent (@yashdiwan12)
+- #17 T16: Benchmark dataset v1 and metric functions (@dhruvt293)
 
 ### In flight
 
-- #8 T07: Keyword/full-text retriever (@AshwaniArya2005), in progress
+- nothing in flight
 
 ### Open pull requests
 
@@ -39,19 +39,19 @@ The notes section at the bottom is written by hand: decisions, reasons and open 
 | T04 | #5 | Frontend scaffold (Vite + React + TS) | @cyborgwastaken | Done | - |
 | T05 | #6 | Resolver rules design doc | @yashdiwan12 | Done | - |
 | **Wave 2: Core pipeline** | | | | | |
-| T06 | #7 | POST/GET /documents | @cyborgwastaken | Ready | - |
-| T07 | #8 | Keyword/full-text retriever | @AshwaniArya2005 | In progress | - |
-| T08 | #9 | Synthesizer with claim-level citations | @AshwaniArya2005 | Backlog | T07 |
-| T09 | #10 | Resolver engine | @yashdiwan12 | Ready | - |
-| T10 | #11 | Baseline RAG | @dhruvt293 | Backlog | T07 |
-| T11 | #12 | Chat UI and document list/upload | @iamsarik | Backlog | T06 |
+| T06 | #7 | POST/GET /documents | @cyborgwastaken | Done | - |
+| T07 | #8 | Keyword/full-text retriever | @AshwaniArya2005 | Done | - |
+| T08 | #9 | Synthesizer with claim-level citations | @AshwaniArya2005 | Done | - |
+| T09 | #10 | Resolver engine | @yashdiwan12 | Done | - |
+| T10 | #11 | Baseline RAG | @dhruvt293 | Done | - |
+| T11 | #12 | Chat UI and document list/upload | @iamsarik | Done | - |
 | **Wave 3: Verification** | | | | | |
-| T12 | #13 | Critic agent | @yashdiwan12 | Backlog | T08 |
-| T13 | #14 | Orchestrator | @AshwaniArya2005 | Backlog | T08, T09, T12 |
+| T12 | #13 | Critic agent | @yashdiwan12 | Ready | - |
+| T13 | #14 | Orchestrator | @AshwaniArya2005 | Backlog | T12 |
 | T14 | #15 | POST /questions and GET /answers/{id} | @cyborgwastaken | Backlog | T13 |
 | T15 | #16 | Evidence graph assembler and endpoint | @yashdiwan12 | Backlog | T12, T14 |
-| T16 | #17 | Benchmark dataset v1 and metric functions | @dhruvt293 | Backlog | T10 |
-| T17 | #18 | Answer view with citations and conflict comparison | @iamsarik | Backlog | T11, T14 |
+| T16 | #17 | Benchmark dataset v1 and metric functions | @dhruvt293 | Ready | - |
+| T17 | #18 | Answer view with citations and conflict comparison | @iamsarik | Backlog | T14 |
 | **Wave 4: Showcase** | | | | | |
 | T18 | #19 | Trust report builder and endpoint | @yashdiwan12 | Backlog | T15 |
 | T19 | #20 | Benchmark runner (3 configs) | @dhruvt293 | Backlog | T13, T16 |
@@ -75,8 +75,12 @@ The notes section at the bottom is written by hand: decisions, reasons and open 
 
 Newest first. One entry per decision, with the reason. Add an entry whenever something is decided that a newcomer (or an AI agent) could not work out from the code.
 
-- **2026-10-20, T02 and T06/T07.** PR #36 (T02 ingestion) is the next blocker: T06 and T07 both wait on it. Keep an eye on it; the generated table shows what is waiting.
-- **2026-10-20, T04 covered by the project lead.** iamsarik is unavailable for now, so cyborgwastaken took T04 (issue #5, noted on the issue). When iamsarik returns, T11 and later frontend tickets go back to them.
+- **2026-10-22, T11 uses a mock for `POST /questions` until T14.** The mock reply and the "Answers are mocked" note in `FRONTEND/src/features/chat/ChatPage.tsx` and the mock `askQuestion` in `FRONTEND/src/api/client.ts` must be removed in the T14 PR. T17 (answer view) needs T14 merged.
+- **2026-10-22, the baseline RAG (T10) is deliberately plain.** It uses search only (`expand_related=False`), so it does not get the supersession expansion TruthGuard adds. A failed model call is `verification_failed`, never `insufficient_evidence`, so the benchmark can count failures separately from correct abstentions. It shares the synthesizer's prompt with the full pipeline, so the comparison isolates what the critic and the resolver add; the evaluation methodology must say so.
+- **2026-10-22, resolver (T09) follows `DOCS/resolver-rules.md`, including closure under supersession.** Before a conflict is judged, every retrieved document linked to a listed source by an applicable supersession joins it, so the superseding document takes part even if the critic did not list it (D11: a conflict whose every side is superseded resolves for the superseding document). A contradiction citing an unretrieved source, or naming fewer than two sources, is `conflict_unresolved`. Checked against an independent reference implementation on 90,000 random cases.
+- **2026-10-20, the language model is Groq, and Python 3.12 is the minimum.** `GroqLLM` (the `groq` SDK needs Python 3.10+; the project lead approved 3.12). The key is the environment variable `GROQ_API_KEY`, never a file; the model name comes from `TRUTHGUARD_LLM_MODEL` (Groq retires models, so keep it in configuration). Only the fictional fixtures go through the API. Everyone recreates their venv with `python3.12` (see `DOCS/setup.md`).
+- **2026-10-20, retrieval (T07) never abstains.** Search is OR-style ranked by `ts_rank`, and `retrieve()` adds the documents that supersede or are superseded by a hit, following chains for up to 5 rounds. For the "no evidence" cases (C08 to C10) it still returns 8 to 11 low-scoring irrelevant passages, so "insufficient evidence" must be decided downstream (T13/T08), for example from the synthesizer returning no claims.
+- **2026-10-20, T04 covered by the project lead.** iamsarik is unavailable for now, so cyborgwastaken took T04 (issue #5, noted on the issue). iamsarik is back and delivered T11.
 - **2026-10-20, frontend needs Node 20.19 or newer.** Vite 8 requires it; plain Node 20.x fails.
 - **2026-10-20, `main` is protected; squash merges only; no `dev` branch.** Every change goes through a PR approved by cyborgwastaken (CODEOWNERS). Squash gives one commit per ticket. A `dev` branch was rejected because every ticket would merge twice and the review value would not increase. Known-good versions are tagged instead (`demo-1`). Reasoning in `DOCS/maintainer-guide.md`.
 - **2026-10-20, admin enforcement is off on purpose.** The lead cannot approve their own PRs, so they merge those with the admin override. Side effect: the lead can also push straight to `main`; the rule is to not do it. One empty test commit (`067640f`, "protection test") landed on `main` that way while testing; it changes nothing.
