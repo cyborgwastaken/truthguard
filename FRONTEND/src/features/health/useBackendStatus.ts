@@ -1,30 +1,29 @@
-import { useEffect, useState } from 'react'
-import { getHealth } from '../../api/client'
+import { useState, useEffect } from 'react'
 import type { BackendStatus } from '../../types'
+import { getHealth } from '../../api/client'
 
-const POLL_MS = 10_000
-
-/** Checks GET /health now and every 10 seconds. */
 export function useBackendStatus(): BackendStatus {
   const [status, setStatus] = useState<BackendStatus>('checking')
 
   useEffect(() => {
+    let cancelled = false
     const controller = new AbortController()
 
     async function check() {
       try {
-        const health = await getHealth(controller.signal)
-        setStatus(health.status === 'ok' ? 'connected' : 'offline')
+        await getHealth(controller.signal)
+        if (!cancelled) setStatus('connected')
       } catch {
-        if (!controller.signal.aborted) setStatus('offline')
+        if (!cancelled) setStatus('offline')
       }
     }
 
-    void check()
-    const timer = setInterval(() => void check(), POLL_MS)
+    check()
+    const id = setInterval(check, 15_000)
     return () => {
+      cancelled = true
       controller.abort()
-      clearInterval(timer)
+      clearInterval(id)
     }
   }, [])
 
