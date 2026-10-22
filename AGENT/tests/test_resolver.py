@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 import pytest
 
 from truthguard_agent.ingestion import ingest_document
-from truthguard_agent.resolver import ResolutionOutcome, resolve
+from truthguard_agent.resolver import ResolutionOutcome, applicable_supersessions, resolve
 from truthguard_agent.retriever import InMemoryPassageStore, retrieve
 from truthguard_agent.schemas import (
     AnswerStatus,
@@ -564,3 +564,20 @@ def test_resolution_works_on_real_retriever_output_with_the_critic_listing_only_
     outcome = resolve(passages, _critic(["remote_policy_v1", "remote_policy_v3_draft"]), AS_OF)
     assert outcome.status == RESOLVED
     assert outcome.winning_source_ids == ["remote_policy_v2"]
+
+
+def test_applicable_supersessions_lists_only_those_in_force_and_allowed():
+    docs = [
+        _doc("old", effective="2026-01-01"),
+        _doc("new", effective="2026-06-01", supersedes="old"),
+        _doc("early", effective="2026-01-01"),
+        _doc("future", effective="2026-12-01", supersedes="early"),
+        _doc("official_target", effective="2026-01-01"),
+        _doc("unknown_superseder", authority="unknown", effective="2026-06-01", supersedes="official_target"),
+    ]
+    assert applicable_supersessions([_passage(d) for d in docs], AS_OF) == {"old": ["new"]}
+
+
+def test_applicable_supersessions_rejects_a_datetime():
+    with pytest.raises(TypeError, match="date, not a datetime"):
+        applicable_supersessions([], datetime(2026, 10, 20, 12, 0))  # type: ignore[arg-type]

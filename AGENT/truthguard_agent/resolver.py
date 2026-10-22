@@ -84,6 +84,16 @@ def resolve(passages: List[RetrievedPassage], critic: CriticResult, as_of: date)
     )
 
 
+def applicable_supersessions(passages: List[RetrievedPassage], as_of: date) -> Dict[str, List[str]]:
+    """Retrieved document -> the retrieved documents that supersede it and are in force (R1, R2, D2).
+
+    The critic uses this for its staleness findings, so both agents agree on what is stale.
+    """
+    if isinstance(as_of, datetime):
+        raise TypeError("as_of must be a date, not a datetime: effective dates are compared by day")
+    return _supersessions(_documents(passages), as_of)[0]
+
+
 def _documents(passages: List[RetrievedPassage]) -> Dict[str, Document]:
     docs: Dict[str, Document] = {}
     for passage in passages:
