@@ -20,7 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -80,6 +80,10 @@ class AnswerRow(Base):
     model_version: Mapped[Optional[str]] = mapped_column(String(100))
     prompt_version: Mapped[Optional[str]] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # The question date the answer was judged as of, and the whole record (answer + verification) as JSON, so
+    # an answer can be shown again exactly as it was produced.
+    as_of: Mapped[Optional[date]] = mapped_column(Date)
+    details: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     claims: Mapped[list["ClaimRow"]] = relationship(back_populates="answer", cascade="all, delete-orphan")
     citations: Mapped[list["AnswerCitationRow"]] = relationship(
