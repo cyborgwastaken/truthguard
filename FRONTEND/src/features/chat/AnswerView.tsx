@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { EvidenceGraphPanel } from './EvidenceGraphView'
+import { TrustPanel } from './TrustPanel'
 import type {
   AnswerResponse,
   AnswerStatus,
@@ -284,6 +286,9 @@ export function AnswerView({ response, onOpenPassage }: Props) {
           <p className="muted">Shown for information. They never decide the status.</p>
         </details>
       )}
+
+      <EvidenceGraphPanel answerId={answer.answer_id} onOpenPassage={onOpenPassage} />
+      <TrustPanel answerId={answer.answer_id} />
 
       <details className="more">
         <summary>How this was checked</summary>

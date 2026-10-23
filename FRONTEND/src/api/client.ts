@@ -4,7 +4,9 @@ import type {
   BenchmarkRun,
   DocumentCreate,
   DocumentSummary,
+  EvidenceGraph,
   HealthResponse,
+  TrustReport,
 } from '../types'
 
 /** Backend address. Override with VITE_API_URL in FRONTEND/.env.local */
@@ -90,10 +92,17 @@ export function listAnswers(limit = 20, signal?: AbortSignal): Promise<AnswerSum
   return request<AnswerSummary[]>(`/answers?limit=${limit}`, { signal })
 }
 
+export function getTrustReport(answerId: string, signal?: AbortSignal): Promise<TrustReport> {
+  return request<TrustReport>(`/answers/${encodeURIComponent(answerId)}/trust-report`, { signal })
+}
+
+export function getEvidenceGraph(answerId: string, signal?: AbortSignal): Promise<EvidenceGraph> {
+  return request<EvidenceGraph>(`/answers/${encodeURIComponent(answerId)}/evidence-graph`, { signal })
+}
+
 // ---- Benchmark ----
 
 /** The latest benchmark run. 404 (ApiError) until `python -m app.benchmark` has been run once. */
 export function getLatestBenchmark(signal?: AbortSignal): Promise<BenchmarkRun> {
   return request<BenchmarkRun>('/evaluations/latest', { signal })
 }
-

@@ -224,3 +224,54 @@ export interface BenchmarkRun {
   consistency: Record<ConfigName, Record<string, number>>
 }
 
+// ---- Trust report and evidence graph (mirror AGENT trust_report.py and evidence_graph.py) ----
+
+export type TrustLevel = 'ok' | 'attention' | 'problem' | 'unknown'
+
+export interface TrustDimension {
+  key: string
+  label: string
+  definition: string
+  numerator: number | null
+  denominator: number | null
+  value: number | null
+  level: TrustLevel
+  detail: string
+}
+
+export interface TrustReport {
+  answer_id: string
+  status: AnswerStatus
+  dimensions: TrustDimension[]
+  warnings: string[]
+}
+
+export interface GraphNode {
+  id: string
+  kind: 'claim' | 'document'
+  label: string
+  role: string
+  claim_status: string | null
+  chunk_ids: string[]
+  version: string | null
+  effective_date: string | null
+  authority_level: string | null
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+  relation: 'supports' | 'contradicts' | 'context' | 'supersedes' | 'conflicts'
+  label: string
+  chunk_ids: string[]
+  in_force: boolean | null
+  settled: boolean | null
+}
+
+export interface EvidenceGraph {
+  answer_id: string
+  as_of: string
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
+
