@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     llm_mode: str = "live"
     llm_temperature: float = 0.0
     llm_cache_path: str = str(DEFAULT_REPLY_CACHE)
+    # Where benchmark runs are read from. Empty: AGENT/datasets/benchmark/results.
+    benchmark_results_dir: str = ""
     # The key may be given as GROQ_API_KEY (environment or BACKEND/.env) or TRUTHGUARD_GROQ_API_KEY.
     groq_api_key: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("GROQ_API_KEY", "TRUTHGUARD_GROQ_API_KEY")

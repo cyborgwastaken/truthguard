@@ -1,4 +1,11 @@
-import type { AnswerResponse, AnswerSummary, DocumentCreate, DocumentSummary, HealthResponse } from '../types'
+import type {
+  AnswerResponse,
+  AnswerSummary,
+  BenchmarkRun,
+  DocumentCreate,
+  DocumentSummary,
+  HealthResponse,
+} from '../types'
 
 /** Backend address. Override with VITE_API_URL in FRONTEND/.env.local */
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
@@ -82,3 +89,11 @@ export function getAnswer(answerId: string, signal?: AbortSignal): Promise<Answe
 export function listAnswers(limit = 20, signal?: AbortSignal): Promise<AnswerSummary[]> {
   return request<AnswerSummary[]>(`/answers?limit=${limit}`, { signal })
 }
+
+// ---- Benchmark ----
+
+/** The latest benchmark run. 404 (ApiError) until `python -m app.benchmark` has been run once. */
+export function getLatestBenchmark(signal?: AbortSignal): Promise<BenchmarkRun> {
+  return request<BenchmarkRun>('/evaluations/latest', { signal })
+}
+

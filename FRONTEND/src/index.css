@@ -82,7 +82,7 @@ h2 { margin: 1.5rem 0 0.5rem; font-size: 1.1rem; }
 .status-offline   .status-dot { background: var(--bad); }
 
 /* ---- Page layout ---- */
-.content { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1rem; }
+.content { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem; }
 .page-subtitle { margin: 0 0 1.25rem; }
 .section-heading { display: flex; align-items: baseline; gap: 0.4rem; }
 .doc-count { font-size: 0.9rem; font-weight: 400; }
@@ -297,3 +297,24 @@ h2 { margin: 1.5rem 0 0.5rem; font-size: 1.1rem; }
 .meta-grid dd { margin: 0; }
 .passage-text { margin: 0; padding: 0.6rem 0.8rem; background: var(--surface); border-left: 3px solid var(--accent); border-radius: 4px; white-space: pre-wrap; }
 
+
+/* ---- Benchmark ---- */
+.bench-run { margin: 0.25rem 0; font-size: 0.85rem; }
+.bench-honesty { margin: 0.5rem 0 0; padding: 0.5rem 0.8rem; background: var(--info-bg); color: var(--info); border-radius: 6px; font-size: 0.9rem; }
+.bench-table th, .bench-table td { vertical-align: top; }
+.metric-name { text-align: left; font-weight: 600; min-width: 14rem; }
+.metric-def { display: block; font-weight: 400; font-size: 0.78rem; margin-top: 0.15rem; }
+.frac { font-size: 0.8rem; margin-left: 0.2rem; }
+.cell-best { background: var(--ok-bg); }
+.cell-pass { color: var(--ok); }
+.cell-fail { color: var(--bad); }
+.cell-mixed { color: var(--warn); }
+.case-detail td { background: var(--surface); }
+.case-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.6rem; }
+.case-answer { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; }
+.case-answer p { margin: 0.4rem 0 0; font-size: 0.9rem; }
+.bench-table { table-layout: fixed; width: 100%; }
+.bench-table th:first-child { width: 36%; }
+.bench-table th, .bench-table td { overflow-wrap: anywhere; }
+.metric-name { min-width: 0; }
+.bench-table th, .bench-table td, .metric-name, .metric-def { white-space: normal; }

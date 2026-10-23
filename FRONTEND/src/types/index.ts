@@ -161,3 +161,65 @@ export interface AnswerSummary {
   as_of: string | null
   created_at: string
 }
+
+// ---- Benchmark (mirrors AGENT/truthguard_agent/evaluation) ----
+
+export type ConfigName = 'baseline' | 'rag_critic' | 'full'
+
+export interface Metric {
+  key: string
+  label: string
+  definition: string
+  numerator: number | null
+  denominator: number | null
+  value: number | null
+  unit: 'ratio' | 'ms'
+  higher_is_better: boolean | null
+  applies: boolean
+  note: string
+}
+
+export interface BenchmarkCase {
+  case_id: string
+  case_type: string
+  question: string
+  as_of: string
+  expected_status: AnswerStatus
+  relevant_document_ids: string[]
+  expected_winner_document_ids: string[]
+  expected_stale_document_ids: string[]
+  expected_answer_contains: string[][]
+  forbidden_answer_contains: string[]
+  note: string
+}
+
+export interface CaseResult {
+  case_id: string
+  config: ConfigName
+  repeat: number
+  status: AnswerStatus
+  answer: string
+  answer_id: string | null
+  citation_document_ids: string[]
+  retrieved_document_ids: string[]
+  winner_document_ids: string[]
+  stale_document_ids: string[]
+  conflicts_detected: number
+  claims_total: number
+  claims_supported: number
+  latency_ms: number
+  failure_reason: string | null
+}
+
+export interface BenchmarkRun {
+  run_id: string
+  created_at: string
+  dataset_version: string
+  settings: Record<string, unknown>
+  config_labels: Record<ConfigName, string>
+  cases: BenchmarkCase[]
+  results: CaseResult[]
+  metrics: Record<ConfigName, Record<string, Metric>>
+  consistency: Record<ConfigName, Record<string, number>>
+}
+

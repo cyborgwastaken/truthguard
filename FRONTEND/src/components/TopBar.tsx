@@ -1,10 +1,11 @@
 import type { BackendStatus } from '../types'
 
-export type PageId = 'chat' | 'documents'
+export type PageId = 'chat' | 'documents' | 'benchmark'
 
 const PAGES: { id: PageId; label: string }[] = [
   { id: 'chat', label: 'Chat' },
   { id: 'documents', label: 'Documents' },
+  { id: 'benchmark', label: 'Benchmark' },
 ]
 
 const STATUS_TEXT: Record<BackendStatus, string> = {
