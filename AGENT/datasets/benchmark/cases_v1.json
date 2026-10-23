@@ -1,0 +1,390 @@
+{
+  "dataset_version": "v1",
+  "description": "The 18 labeled cases of AGENT/datasets/fixtures/README.md as machine-readable test cases. Answer checks are case-insensitive substring matches: every group in expected_answer_contains needs at least one of its strings; none of forbidden_answer_contains may appear.",
+  "cases": [
+    {
+      "case_id": "C01",
+      "case_type": "superseded",
+      "question": "How many days per week can employees work remotely?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "remote_policy_v1",
+        "remote_policy_v2"
+      ],
+      "expected_winner_document_ids": [
+        "remote_policy_v2"
+      ],
+      "expected_stale_document_ids": [
+        "remote_policy_v1"
+      ],
+      "expected_answer_contains": [
+        [
+          "three",
+          "3"
+        ]
+      ],
+      "forbidden_answer_contains": [
+        "five days",
+        "5 days"
+      ],
+      "note": "v2 explicitly supersedes v1"
+    },
+    {
+      "case_id": "C02",
+      "case_type": "superseded",
+      "question": "What is the daily domestic travel budget?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "travel_budget_v1",
+        "travel_budget_v2"
+      ],
+      "expected_winner_document_ids": [
+        "travel_budget_v2"
+      ],
+      "expected_stale_document_ids": [
+        "travel_budget_v1"
+      ],
+      "expected_answer_contains": [
+        [
+          "$200",
+          "200"
+        ]
+      ],
+      "forbidden_answer_contains": [
+        "$250"
+      ],
+      "note": "v2 supersedes v1: $200 not $250"
+    },
+    {
+      "case_id": "C03",
+      "case_type": "superseded",
+      "question": "What is the equipment allowance for new full-time employees?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "equipment_allowance_v1",
+        "equipment_allowance_v2"
+      ],
+      "expected_winner_document_ids": [
+        "equipment_allowance_v2"
+      ],
+      "expected_stale_document_ids": [
+        "equipment_allowance_v1"
+      ],
+      "expected_answer_contains": [
+        [
+          "2,000",
+          "2000"
+        ]
+      ],
+      "forbidden_answer_contains": [
+        "$1,500",
+        "1,500"
+      ],
+      "note": "v2 supersedes v1: $2,000 not $1,500"
+    },
+    {
+      "case_id": "C04",
+      "case_type": "superseded",
+      "question": "How many days of annual leave do employees receive per year?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "annual_leave_policy_v1",
+        "annual_leave_policy_v2"
+      ],
+      "expected_winner_document_ids": [
+        "annual_leave_policy_v2"
+      ],
+      "expected_stale_document_ids": [
+        "annual_leave_policy_v1"
+      ],
+      "expected_answer_contains": [
+        [
+          "25"
+        ]
+      ],
+      "forbidden_answer_contains": [
+        "20 days"
+      ],
+      "note": "v2 supersedes v1: 25 days not 20"
+    },
+    {
+      "case_id": "C05",
+      "case_type": "unresolved_conflict",
+      "question": "How long do employees have to submit expense receipts?",
+      "as_of": "2026-10-20",
+      "expected_status": "conflict_unresolved",
+      "relevant_document_ids": [
+        "expense_receipt_deadline_finance",
+        "expense_receipt_deadline_hr"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "14"
+        ],
+        [
+          "30"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "two equally official sources: 14 days (Finance) vs 30 days (HR)"
+    },
+    {
+      "case_id": "C06",
+      "case_type": "unresolved_conflict",
+      "question": "Can employees use co-working spaces without VPN?",
+      "as_of": "2026-10-20",
+      "expected_status": "conflict_unresolved",
+      "relevant_document_ids": [
+        "remote_coworking_policy_a",
+        "remote_coworking_policy_b"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [],
+      "forbidden_answer_contains": [],
+      "note": "IT Security prohibits it; Operations allows it on certified networks"
+    },
+    {
+      "case_id": "C07",
+      "case_type": "unresolved_conflict",
+      "question": "How many days of unused leave can employees carry over, and is excess paid out?",
+      "as_of": "2026-10-20",
+      "expected_status": "conflict_unresolved",
+      "relevant_document_ids": [
+        "leave_carry_over_conflict_a",
+        "leave_carry_over_conflict_b"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "5"
+        ],
+        [
+          "10"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "Payroll: 5 days and cash payout; HR: 10 days and no payout"
+    },
+    {
+      "case_id": "C08",
+      "case_type": "insufficient_evidence",
+      "question": "What is Acme Corp's policy on employee stock options?",
+      "as_of": "2026-10-20",
+      "expected_status": "insufficient_evidence",
+      "relevant_document_ids": [],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [],
+      "forbidden_answer_contains": [],
+      "note": "no document mentions stock options"
+    },
+    {
+      "case_id": "C09",
+      "case_type": "insufficient_evidence",
+      "question": "Does Acme Corp offer a sabbatical programme?",
+      "as_of": "2026-10-20",
+      "expected_status": "insufficient_evidence",
+      "relevant_document_ids": [],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [],
+      "forbidden_answer_contains": [],
+      "note": "no document mentions sabbaticals"
+    },
+    {
+      "case_id": "C10",
+      "case_type": "insufficient_evidence",
+      "question": "What is the company policy on gym membership reimbursement?",
+      "as_of": "2026-10-20",
+      "expected_status": "insufficient_evidence",
+      "relevant_document_ids": [],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [],
+      "forbidden_answer_contains": [],
+      "note": "no document covers gym or wellness reimbursement"
+    },
+    {
+      "case_id": "C11",
+      "case_type": "hard_negative",
+      "question": "How many remote days per week can managers take versus interns?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "remote_work_managers",
+        "remote_work_interns"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "two",
+          "2"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "different groups: not a contradiction"
+    },
+    {
+      "case_id": "C12",
+      "case_type": "hard_negative",
+      "question": "What is the meal allowance for domestic travel versus international travel?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "meal_allowance_domestic",
+        "meal_allowance_international"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "$50",
+          "50"
+        ],
+        [
+          "$75",
+          "75"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "different travel types: not a contradiction"
+    },
+    {
+      "case_id": "C13",
+      "case_type": "draft_trap",
+      "question": "Can employees now work fully remotely with no office attendance requirement?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "remote_policy_v3_draft",
+        "remote_policy_v2"
+      ],
+      "expected_winner_document_ids": [
+        "remote_policy_v2"
+      ],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "three",
+          "3"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "the v3 document is only an unapproved draft; v2 (three days) is current"
+    },
+    {
+      "case_id": "C14",
+      "case_type": "draft_trap",
+      "question": "Has the Operations Division expense limit for client entertainment been raised to $250?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "expense_limit_increase_draft",
+        "expense_policy_ops"
+      ],
+      "expected_winner_document_ids": [
+        "expense_policy_ops"
+      ],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "150"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "the $250 proposal is an unapproved draft; the official limit is $150"
+    },
+    {
+      "case_id": "C15",
+      "case_type": "single_source",
+      "question": "How many days of paid parental leave does a primary caregiver receive?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "parental_leave_policy"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "16 weeks",
+          "16"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "16 weeks"
+    },
+    {
+      "case_id": "C16",
+      "case_type": "single_source",
+      "question": "How many paid sick days do employees get per year?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "sick_leave_policy"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "10"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "10 days"
+    },
+    {
+      "case_id": "C17",
+      "case_type": "single_source",
+      "question": "How often does Acme Corp refresh employee laptops?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "laptop_refresh_policy"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "three years",
+          "3 years",
+          "every three",
+          "3"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "every three years"
+    },
+    {
+      "case_id": "C18",
+      "case_type": "informal_note",
+      "question": "What is the equipment allowance for contractors?",
+      "as_of": "2026-10-20",
+      "expected_status": "resolved",
+      "relevant_document_ids": [
+        "contractor_equipment_informal",
+        "equipment_allowance_v1",
+        "equipment_allowance_v2"
+      ],
+      "expected_winner_document_ids": [],
+      "expected_stale_document_ids": [],
+      "expected_answer_contains": [
+        [
+          "$500",
+          "500"
+        ]
+      ],
+      "forbidden_answer_contains": [],
+      "note": "the informal note does not contradict the official $500; v1 is superseded by v2 which keeps $500"
+    }
+  ]
+}
