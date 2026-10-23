@@ -1,78 +1,37 @@
 import { useState, useRef, useEffect, useId } from 'react'
-import type { FinalAnswer, AnswerStatus } from '../../types'
+import type { AnswerResponse } from '../../types'
 import { askQuestion, ApiError } from '../../api/client'
-
-// ---- Status badge ----
-
-const STATUS_LABELS: Record<AnswerStatus, string> = {
-  resolved: 'Resolved',
-  conflict_unresolved: 'Conflict – unresolved',
-  insufficient_evidence: 'Insufficient evidence',
-  verification_failed: 'Verification failed',
-}
-
-function StatusBadge({ status }: { status: AnswerStatus }) {
-  return (
-    <span className={`answer-badge answer-badge-${status}`} aria-label={`Status: ${STATUS_LABELS[status]}`}>
-      {STATUS_LABELS[status]}
-    </span>
-  )
-}
+import { AnswerView, PassageDialog } from './AnswerView'
 
 // ---- Message types ----
 
 type UserMessage = { kind: 'user'; text: string; id: string }
-type AnswerMessage = { kind: 'answer'; answer: FinalAnswer; id: string }
+type AnswerMessage = { kind: 'answer'; response: AnswerResponse; id: string }
 type ErrorMessage = { kind: 'error'; text: string; id: string }
 type LoadingMessage = { kind: 'loading'; id: string }
 type Message = UserMessage | AnswerMessage | ErrorMessage | LoadingMessage
 
-// ---- Answer bubble ----
-
-function AnswerBubble({ answer }: { answer: FinalAnswer }) {
-  const isInsufficient = answer.status === 'insufficient_evidence'
-  // A failed verification has no answer text; say so instead of showing an empty bubble.
-  const failedWithoutText = answer.status === 'verification_failed' && !answer.answer.trim()
-  return (
-    <div className="msg-bubble msg-answer">
-      <StatusBadge status={answer.status} />
-      <p className="answer-text">
-        {isInsufficient
-          ? 'The documents don\'t contain enough information to answer this question.'
-          : failedWithoutText
-            ? 'The system could not verify an answer to this question. Please try again.'
-            : answer.answer}
-      </p>
-      {answer.resolution_reason && (
-        <p className="answer-reason muted">
-          <strong>Reason:</strong> {answer.resolution_reason}
-        </p>
-      )}
-      {answer.conflicts_detected > 0 && (
-        <p className="answer-conflicts muted">
-          {answer.conflicts_detected} conflict{answer.conflicts_detected > 1 ? 's' : ''} detected.
-        </p>
-      )}
-    </div>
-  )
-}
+// Questions that show each situation the system is built for (they match the fictional sample documents).
+const EXAMPLES = [
+  { label: 'Superseded policy', question: 'How many days per week can employees work remotely?' },
+  { label: 'Equally official sources disagree', question: 'How long do employees have to submit expense receipts?' },
+  { label: 'Not in the documents', question: "What is Acme Corp's policy on employee stock options?" },
+  { label: 'Different groups, no conflict', question: 'How many remote days per week can managers take versus interns?' },
+]
 
 // ---- Message list ----
 
-function MessageList({ messages }: { messages: Message[] }) {
+interface ListProps {
+  messages: Message[]
+  onOpenPassage: (response: AnswerResponse, chunkId: string) => void
+}
+
+function MessageList({ messages, onOpenPassage }: ListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' })
   }, [messages])
-
-  if (messages.length === 0) {
-    return (
-      <div className="chat-empty muted" role="status">
-        Ask a question about the uploaded documents.
-      </div>
-    )
-  }
 
   return (
     <div className="chat-messages" role="log" aria-live="polite" aria-label="Conversation">
@@ -87,10 +46,11 @@ function MessageList({ messages }: { messages: Message[] }) {
         if (m.kind === 'loading') {
           return (
             <div key={m.id} className="msg-row msg-row-answer">
-              <div className="msg-bubble msg-loading" role="status" aria-label="Thinking">
+              <div className="msg-bubble msg-loading" role="status" aria-label="Checking the documents">
                 <span className="typing-dot" />
                 <span className="typing-dot" />
                 <span className="typing-dot" />
+                <span className="loading-text">Retrieving sources, drafting an answer and checking it…</span>
               </div>
             </div>
           )
@@ -104,10 +64,9 @@ function MessageList({ messages }: { messages: Message[] }) {
             </div>
           )
         }
-        // kind === 'answer'
         return (
-          <div key={m.id} className="msg-row msg-row-answer">
-            <AnswerBubble answer={m.answer} />
+          <div key={m.id} className="msg-row msg-row-answer msg-row-wide">
+            <AnswerView response={m.response} onOpenPassage={(chunkId) => onOpenPassage(m.response, chunkId)} />
           </div>
         )
       })}
@@ -173,6 +132,7 @@ function nextId() { return String(++_msgSeq) }
 export function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState<{ response: AnswerResponse; chunkId: string } | null>(null)
 
   async function handleSend(question: string) {
     const userMsgId = nextId()
@@ -186,38 +146,54 @@ export function ChatPage() {
     setLoading(true)
 
     try {
-      const answer = await askQuestion(question)
+      const response = await askQuestion(question)
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === loadingId ? { kind: 'answer', answer, id: nextId() } : m,
-        ),
+        prev.map((m) => (m.id === loadingId ? { kind: 'answer', response, id: nextId() } : m)),
       )
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Request failed. Please try again.'
+      const msg = err instanceof ApiError ? err.message : 'Request failed. Is the backend running?'
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === loadingId ? { kind: 'error', text: msg, id: nextId() } : m,
-        ),
+        prev.map((m) => (m.id === loadingId ? { kind: 'error', text: msg, id: nextId() } : m)),
       )
     } finally {
       setLoading(false)
     }
   }
 
+  const passage = open ? open.response.verification.passages.find((p) => p.chunk_id === open.chunkId) ?? null : null
+
   return (
     <section className="chat-page">
       <h1>Chat</h1>
       <p className="muted page-subtitle">
-        Ask questions about uploaded documents. Answers include their verification status.
+        Ask questions about the uploaded documents. Every answer shows its sources, any conflict between them,
+        and why it was decided that way.
       </p>
       <div className="chat-container">
-        <MessageList messages={messages} />
+        {messages.length === 0 ? (
+          <div className="chat-empty" role="status">
+            <div>
+              <p className="muted">Ask a question, or try one of these:</p>
+              <ul className="examples">
+                {EXAMPLES.map((e) => (
+                  <li key={e.label}>
+                    <button type="button" className="example" disabled={loading} onClick={() => handleSend(e.question)}>
+                      <span className="example-label">{e.label}</span>
+                      <span className="example-question">{e.question}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <MessageList messages={messages} onOpenPassage={(response, chunkId) => setOpen({ response, chunkId })} />
+        )}
         <InputArea onSend={handleSend} disabled={loading} />
       </div>
-      <p className="chat-note muted">
-        <strong>Note:</strong> Answers are mocked until the <code>POST /questions</code> endpoint
-        lands in T14. The status badges, loading states and error handling are all wired.
-      </p>
+      {open && passage && (
+        <PassageDialog passage={passage} verification={open.response.verification} onClose={() => setOpen(null)} />
+      )}
     </section>
   )
 }

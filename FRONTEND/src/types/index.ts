@@ -49,14 +49,35 @@ export interface DocumentSummary {
 }
 
 // ---- Answer / Question types ----
+// Mirror AGENT/truthguard_agent/schemas/models.py and AGENT/truthguard_agent/orchestrator.py.
 
-/** Mirrors EvidenceRef in models.py */
 export interface EvidenceRef {
   source_id: string
   chunk_id: string
 }
 
-/** Mirrors FinalAnswer in models.py */
+export type ClaimStatus = 'supported' | 'contradicted' | 'partially_supported' | 'unsupported' | 'unverified'
+export type EvidenceRelation = 'supports' | 'contradicts' | 'context'
+/** What a claim is in the answer. */
+export type ClaimRole = 'current' | 'superseded' | 'conflict_side' | 'unsupported'
+
+export interface Claim {
+  claim_id: string
+  answer_id: string
+  text: string
+  claim_type: string
+  status: ClaimStatus
+}
+
+export interface EvidenceLink {
+  claim_id: string
+  chunk_id: string
+  source_id: string
+  relation: EvidenceRelation
+  rationale: string
+  verifier_version: string
+}
+
 export interface FinalAnswer {
   answer_id: string
   question: string
@@ -65,5 +86,78 @@ export interface FinalAnswer {
   citations: EvidenceRef[]
   conflicts_detected: number
   resolution_reason: string | null
+  claims: Claim[]
+  evidence_links: EvidenceLink[]
+  created_at: string
+  model_version: string | null
+  prompt_version: string | null
+}
+
+/** One retrieved passage with the metadata a reader needs to judge it. */
+export interface PassageView {
+  chunk_id: string
+  document_id: string
+  title: string
+  text: string
+  version: string | null
+  effective_date: string | null
+  authority_level: AuthorityLevel
+  supersedes_document_id: string | null
+  score: number | null
+  in_scope: boolean
+}
+
+export interface ConflictVerdict {
+  claim: string
+  severity: 'low' | 'medium' | 'high'
+  source_ids: string[]
+  evidence: EvidenceRef[]
+  status: AnswerStatus
+  winner_source_ids: string[]
+  reason: string
+}
+
+export interface StalenessFinding {
+  source_id: string
+  reason: string
+  evidence: EvidenceRef[]
+}
+
+export interface UnsupportedClaimFinding {
+  claim: string
+  evidence: EvidenceRef[]
+}
+
+/** Everything behind an answer. */
+export interface Verification {
+  as_of: string
+  stage: 'retrieval' | 'synthesis' | 'critic' | 'resolution'
+  passages: PassageView[]
+  scope_document_ids: string[]
+  conflicts: ConflictVerdict[]
+  stale: StalenessFinding[]
+  unsupported: UnsupportedClaimFinding[]
+  winning_source_ids: string[]
+  stale_source_ids: string[]
+  claim_roles: Record<string, ClaimRole>
+  caveats: string[]
+  off_topic_ignored: number
+  failure_reason: string | null
+  model_attempts: number
+  timings_ms: Record<string, number>
+}
+
+/** Response of POST /questions and GET /answers/{id}. */
+export interface AnswerResponse {
+  answer: FinalAnswer
+  verification: Verification
+  llm_mode: 'live' | 'record' | 'cache' | 'replay'
+}
+
+export interface AnswerSummary {
+  answer_id: string
+  question: string
+  status: AnswerStatus
+  as_of: string | null
   created_at: string
 }

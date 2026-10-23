@@ -1,4 +1,4 @@
-import type { DocumentCreate, DocumentSummary, FinalAnswer, HealthResponse } from '../types'
+import type { AnswerResponse, AnswerSummary, DocumentCreate, DocumentSummary, HealthResponse } from '../types'
 
 /** Backend address. Override with VITE_API_URL in FRONTEND/.env.local */
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
@@ -63,21 +63,22 @@ export function uploadDocument(payload: DocumentCreate): Promise<DocumentSummary
   })
 }
 
-// ---- Questions (T14 not yet merged: uses a mock) ----
-// Swap the body of this function for a real fetch when T14 lands.
+// ---- Questions and answers ----
 
-export async function askQuestion(question: string, _signal?: AbortSignal): Promise<FinalAnswer> {
-  // MOCK – returns after a short delay so loading states are exercised
-  await new Promise((r) => setTimeout(r, 800))
-  return {
-    answer_id: 'mock-' + Date.now(),
-    question,
-    answer:
-      'This is a mock answer. Connect the real POST /questions endpoint when T14 is merged.',
-    status: 'resolved',
-    citations: [],
-    conflicts_detected: 0,
-    resolution_reason: null,
-    created_at: new Date().toISOString(),
-  }
+/** Runs the full verification pipeline. With the real model this takes several seconds. */
+export function askQuestion(question: string, asOf?: string, signal?: AbortSignal): Promise<AnswerResponse> {
+  return request<AnswerResponse>('/questions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, as_of: asOf ?? null }),
+    signal,
+  })
+}
+
+export function getAnswer(answerId: string, signal?: AbortSignal): Promise<AnswerResponse> {
+  return request<AnswerResponse>(`/answers/${encodeURIComponent(answerId)}`, { signal })
+}
+
+export function listAnswers(limit = 20, signal?: AbortSignal): Promise<AnswerSummary[]> {
+  return request<AnswerSummary[]>(`/answers?limit=${limit}`, { signal })
 }
