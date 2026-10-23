@@ -198,7 +198,7 @@ def test_ids_versions_and_timings_are_filled_in(store):
     answer = result.answer
     assert answer.answer_id == "a1" and [c.claim_id for c in answer.claims] == ["a1::c1"]
     assert answer.model_version == "fake-llm"
-    assert "synthesizer-v1" in answer.prompt_version and "critic-v1" in answer.prompt_version
+    assert "synthesizer-v1" in answer.prompt_version and "critic-v2" in answer.prompt_version
     assert set(result.verification.timings_ms) == {"retrieval", "synthesis", "critic", "resolution"}
 
 

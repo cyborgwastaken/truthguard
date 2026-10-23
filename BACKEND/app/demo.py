@@ -49,6 +49,7 @@ def main(argv=None) -> int:
     recorder = CachingLLM(inner, settings.llm_cache_path, args.mode)
     print("model %s, temperature %s, mode %s\n" % (settings.llm_model, settings.llm_temperature, args.mode))
     problems = 0
+    failures = []
     for case_id in wanted:
         case = by_id[case_id]
         got = []
@@ -63,9 +64,15 @@ def main(argv=None) -> int:
             got.append(result.answer.status.value)
             if result.answer.status != case.expected_status:
                 problems += 1
+            if result.verification.failure_reason:
+                failures.append("   %s run %d: %s" % (case_id, repeat + 1, result.verification.failure_reason))
         verdict = "OK " if all(g == case.expected_status.value for g in got) else "BAD"
         print("%s %-4s expected %-21s got %-45s %5.1fs  %s" % (
             verdict, case_id, case.expected_status.value, ", ".join(got), sum(seconds) / len(seconds), case.question))
+    if failures:
+        print("\nWhy the checks failed:")
+        for line in failures:
+            print(line[:400])
     print("\n%s" % ("All answers have the expected status." if not problems else
                     "%d answer(s) differ from the expected status: prefer other questions for the demo." % problems))
     return 1 if problems else 0

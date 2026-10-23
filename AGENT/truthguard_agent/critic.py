@@ -27,7 +27,7 @@ from .schemas import (
 )
 from .synthesizer import SynthesizedClaim
 
-PROMPT_VERSION = "critic-v1"
+PROMPT_VERSION = "critic-v2"
 MAX_ATTEMPTS = 2
 
 CONTRADICTION_PROMPT = """You compare passages taken from different documents. Report a contradiction only \
@@ -42,11 +42,20 @@ Do NOT report:
 - a disagreement about a topic the question does not ask about;
 - passages about different groups, roles, regions or kinds of thing (for example managers versus interns, or \
 domestic versus international travel): different scopes are not a contradiction;
+- a rule for one specific group, role, place or situation (managers, interns, contractors, one office) set \
+against a general rule for everyone. Rules are layered like this on purpose: the specific rule applies to that \
+group and the general rule to everyone else. A narrower or stricter rule for a group is NOT a contradiction;
+- passages that measure different things. Read each passage carefully for WHAT it limits or requires: days in \
+the office are not days of remote work, a minimum is not a maximum, an allowance for one category is not an \
+allowance for another;
 - passages that agree, repeat each other, or only sound similar;
 - a passage that adds detail the others do not mention;
 - a passage that is only a proposal or draft, unless it states something that conflicts with another passage \
 (whether it counts is decided elsewhere; you only report what the texts say).
 A document that replaces an older one is still a contradiction if the two say different things: report it.
+
+Before you report anything, check all three: both passages are about the SAME subject, the SAME people and the \
+SAME situation, and they cannot both be true. If you are not sure, do not report it.
 
 Rules:
 1. Use only the passages. No outside knowledge.

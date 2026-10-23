@@ -86,7 +86,7 @@ def test_the_reply_length_limit_is_sent():
 def test_a_rate_limit_error_becomes_an_llm_error_with_the_status_and_message():
     error = status_error(groq.RateLimitError, 429, "Rate limit reached for model")
     with pytest.raises(LLMError, match=r"429.*Rate limit reached for model"):
-        llm_for(error)[0].complete("s", "u")
+        llm_for(error, rate_limit_retries=0)[0].complete("s", "u")
 
 
 def test_a_server_error_a_timeout_and_a_lost_connection_also_become_llm_errors():
@@ -193,3 +193,81 @@ def test_groq_llm_works_with_the_synthesizer_end_to_end():
     result = synthesize("How many days?", [passage], llm)
     assert result.ok and result.model_name == "groq-test"
     assert completions.calls[0]["response_format"] == {"type": "json_object"}
+
+
+# ---- waiting out a rate limit ----------------------------------------------------------------------------
+
+class SequenceCompletions:
+    """Returns or raises the outcomes in order, one per call."""
+
+    def __init__(self, outcomes):
+        self.outcomes = list(outcomes)
+        self.calls = []
+
+    def create(self, *, messages, model, **options):
+        self.calls.append(options)
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+
+def sequence_llm(outcomes, **kwargs):
+    client = type("Client", (), {})()
+    client.chat = type("Chat", (), {})()
+    client.chat.completions = SequenceCompletions(outcomes)
+    sleeps = []
+    llm = GroqLLM("groq-test", client=client, sleep=sleeps.append, **kwargs)
+    return llm, client.chat.completions, sleeps
+
+
+def rate_limited(message="Rate limit reached", retry_after=None):
+    headers = {"retry-after": str(retry_after)} if retry_after is not None else {}
+    response = httpx.Response(429, request=REQUEST, headers=headers, json={"error": {"message": message}})
+    return groq.RateLimitError(message, response=response, body={"error": {"message": message}})
+
+
+def test_a_rate_limit_is_waited_out_using_the_retry_after_header_then_the_call_succeeds():
+    llm, completions, sleeps = sequence_llm([rate_limited(retry_after=2), completion("done")])
+    assert llm.complete("s", "u") == "done"
+    assert sleeps == [2.5] and len(completions.calls) == 2 and llm.rate_limit_waits == 1
+
+
+def test_the_wait_is_read_from_the_message_when_there_is_no_header():
+    message = "Rate limit reached for model on tokens per minute (TPM): Limit 8000, Used 7040. Please try again in 17.2725s. Need more tokens?"
+    llm, _, sleeps = sequence_llm([rate_limited(message), completion("done")])
+    assert llm.complete("s", "u") == "done"
+    assert sleeps == [pytest.approx(17.7725)]
+
+
+@pytest.mark.parametrize("text,seconds", [
+    ("Please try again in 250ms.", 0.25),
+    ("Please try again in 14.355s.", 14.355),
+    ("Please try again in 1m2.5s.", 62.5),
+    ("Please try again in 1h2m3s.", 3723),
+])
+def test_the_wait_formats_groq_uses_are_understood(text, seconds):
+    from truthguard_agent.llm import retry_after_seconds
+    assert retry_after_seconds(rate_limited("Rate limit. " + text)) == pytest.approx(seconds)
+
+
+def test_a_wait_longer_than_the_limit_such_as_a_daily_cap_is_not_waited_out():
+    llm, completions, sleeps = sequence_llm([rate_limited("Rate limit on tokens per day. Please try again in 12m36s.")])
+    with pytest.raises(LLMError, match=r"429.*tokens per day"):
+        llm.complete("s", "u")
+    assert sleeps == [] and len(completions.calls) == 1
+
+
+def test_no_hint_means_a_default_wait_and_the_retries_are_bounded():
+    llm, completions, sleeps = sequence_llm([rate_limited()] * 4, rate_limit_retries=3, default_wait_seconds=10)
+    with pytest.raises(LLMError, match="429"):
+        llm.complete("s", "u")
+    assert sleeps == [10.5, 10.5, 10.5] and len(completions.calls) == 4  # one try and three retries, then it fails visibly
+
+
+def test_only_rate_limits_are_retried():
+    llm, completions, sleeps = sequence_llm([status_error(groq.InternalServerError, 503, "over capacity")])
+    with pytest.raises(LLMError, match="503"):
+        llm.complete("s", "u")
+    assert sleeps == [] and len(completions.calls) == 1
+

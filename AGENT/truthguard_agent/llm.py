@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
+import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Protocol, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Union
 
 
 class LLMError(Exception):
@@ -26,12 +28,33 @@ class LLMClient(Protocol):
         ...
 
 
+_WAIT = re.compile(r"try again in\s+(?:(\d+(?:\.\d+)?)h)?\s*(?:(\d+(?:\.\d+)?)m(?!s))?\s*(?:(\d+(?:\.\d+)?)s)?\s*(?:(\d+(?:\.\d+)?)ms)?", re.IGNORECASE)
+
+
+def retry_after_seconds(error: Exception) -> Optional[float]:
+    """How long the service asked us to wait: the retry-after header, else "try again in 1m2.5s" in the message."""
+    headers = getattr(getattr(error, "response", None), "headers", None)
+    if headers is not None:
+        try:
+            return float(headers.get("retry-after"))
+        except (TypeError, ValueError):
+            pass
+    match = _WAIT.search(str(getattr(error, "message", "") or "") + " " + str(error))
+    if match and any(match.groups()):
+        hours, minutes, seconds, millis = (float(g) if g else 0.0 for g in match.groups())
+        return hours * 3600 + minutes * 60 + seconds + millis / 1000
+    return None
+
+
 class GroqLLM:
     """LLMClient for the Groq API (groq SDK).
 
     The key comes from api_key, else the GROQ_API_KEY environment variable; it is never logged or stored
     here. The model name is passed in (AGENT cannot read BACKEND's settings). The SDK is told not to
-    retry, so one complete() call is one request against the rate limit. Groq says it does not train on
+    retry; the one retry this class does is deliberate: when Groq answers 429 (rate limit, for example the
+    free tier's tokens-per-minute cap) it waits as long as Groq says (the retry-after header, else the "try
+    again in ..." text) and tries again, up to rate_limit_retries times. A wait longer than max_wait_seconds
+    (a daily limit, say) is not waited out: it fails at once with the message. Groq says it does not train on
     customer data, but send it only the fictional fixtures until the team has agreed otherwise.
     """
 
@@ -43,10 +66,19 @@ class GroqLLM:
         max_output_tokens: int = 8192,
         client: Any = None,
         temperature: Optional[float] = None,
+        rate_limit_retries: int = 3,
+        max_wait_seconds: float = 45.0,
+        default_wait_seconds: float = 15.0,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.model_name = model
         self._max_output_tokens = max_output_tokens
         self._temperature = temperature
+        self._rate_limit_retries = rate_limit_retries
+        self._max_wait = max_wait_seconds
+        self._default_wait = default_wait_seconds
+        self._sleep = sleep
+        self.rate_limit_waits = 0  # how many times a call had to wait for the rate limit
         if client is None:
             import groq
 
@@ -64,15 +96,32 @@ class GroqLLM:
             options["temperature"] = self._temperature
         if json_output:
             options["response_format"] = {"type": "json_object"}
-        try:
-            response = self._client.chat.completions.create(
-                model=self.model_name,
-                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-                **options,
-            )
-        except Exception as error:  # API errors, timeouts, lost connections, anything else the SDK raises
-            raise LLMError(self._describe(error)) from error
+        attempt = 0
+        while True:
+            try:
+                response = self._client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                    **options,
+                )
+                break
+            except Exception as error:  # API errors, timeouts, lost connections, anything else the SDK raises
+                wait = self._rate_limit_wait(error) if attempt < self._rate_limit_retries else None
+                if wait is None:
+                    raise LLMError(self._describe(error)) from error
+                attempt += 1
+                self.rate_limit_waits += 1
+                self._sleep(wait)
         return self._text_of(response)
+
+    def _rate_limit_wait(self, error: Exception) -> Optional[float]:
+        """Seconds to wait before retrying a rate-limited call, or None if it should not be retried."""
+        if getattr(error, "status_code", None) != 429:
+            return None
+        wait = retry_after_seconds(error)
+        if wait is None:
+            wait = self._default_wait
+        return wait + 0.5 if wait <= self._max_wait else None
 
     @staticmethod
     def _describe(error: Exception) -> str:
