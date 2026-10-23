@@ -12,6 +12,8 @@ Multi-agent document verification: sourced answers, contradiction and staleness 
 | Doc | What it is |
 |---|---|
 | [DOCS/setup.md](DOCS/setup.md) | Install and run everything on your computer |
+| [DOCS/demo-script.md](DOCS/demo-script.md) | The demo, step by step, and what to do when something goes wrong |
+| [DOCS/evaluation-methodology.md](DOCS/evaluation-methodology.md) | How the benchmark works and what its numbers do not show |
 | [DOCS/instructions.md](DOCS/instructions.md) | Entry point and rules for AI coding agents |
 | [DOCS/team/README.md](DOCS/team/README.md) | How we work: board, branches, pull requests, who does what |
 | [DOCS/team/](DOCS/team/) | One page per person, and one doc per role with step-by-step ticket instructions |
@@ -31,14 +33,16 @@ Project board: GitHub -> cyborgwastaken -> Projects -> Virtusa TruthGuard.
 | `OPS/` | Docker Compose, database setup, deployment |
 | `DOCS/` | Roadmaps, architecture, evaluation methodology |
 
-## Dev setup
+## Run it
 
-Full step-by-step guide: [DOCS/setup.md](DOCS/setup.md). The short version:
+With Docker Desktop running, and Node 20.19+ and Python 3.12+ installed:
 
 ```bash
-python3.12 -m venv .venv && source .venv/bin/activate && pip install --upgrade pip   # Python 3.12+ (see DOCS/setup.md)
-(cd BACKEND && pip install -r requirements.txt)          # also installs ../AGENT in editable mode
-docker compose -f OPS/docker-compose.yml up -d           # Postgres on port 5433
-(cd BACKEND && alembic upgrade head && python -m pytest)
-(cd BACKEND && uvicorn app.main:app --reload)
+OPS/start.sh     # database, backend, sample documents, frontend: then open http://localhost:5173
+OPS/stop.sh
 ```
+
+Put `GROQ_API_KEY=...` in `BACKEND/.env` for real answers. The full guide is [DOCS/setup.md](DOCS/setup.md); the demo is
+[DOCS/demo-script.md](DOCS/demo-script.md); how it is measured is [DOCS/evaluation-methodology.md](DOCS/evaluation-methodology.md).
+
+Tests: `cd AGENT && python -m pytest`, `cd BACKEND && python -m pytest` (needs the database), `python -m pytest OPS/tests`.

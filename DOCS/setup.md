@@ -2,6 +2,27 @@
 
 Follow this once to get TruthGuard running on your computer. It takes about 15 minutes. If a step fails, check "Troubleshooting" at the bottom, then ask for help with the exact error text.
 
+## The short way
+
+With Docker Desktop running, and Node 20.19+ and Python 3.12+ installed:
+
+```bash
+OPS/start.sh        # database, backend, sample documents, frontend; prints the address (http://localhost:5173)
+OPS/stop.sh         # stop it again
+OPS/reset_answers.sh  # delete stored answers (keeps the documents), for a clean rehearsal
+```
+
+For answers from the real language model, put your key in `BACKEND/.env` (git-ignored) and restart:
+
+```text
+GROQ_API_KEY=your-key-here
+```
+
+Without a key the app starts and everything except asking questions works; if recorded replies exist
+(`AGENT/datasets/recorded/replies.jsonl`) it starts in replay mode, and those answers are labelled "Replayed recording".
+Rehearsing the demo, recording replies and running the benchmark are in [demo-script.md](demo-script.md) and
+[evaluation-methodology.md](evaluation-methodology.md). The steps below are the same thing done by hand.
+
 ## 1. What you need installed
 
 | Tool | Version | Check with | Get it |
@@ -131,7 +152,7 @@ TRUTHGUARD_DATABASE_URL=postgresql+psycopg://truthguard:truthguard@localhost:543
 TRUTHGUARD_CORS_ORIGINS=http://localhost:5173
 ```
 
-The language-model key (needed from ticket T08 on) is **not** read from `.env`. Set it in your terminal before starting the backend: `export GROQ_API_KEY=your-key-here` (Windows PowerShell: `$env:GROQ_API_KEY="your-key-here"`). Never put it in a file that is committed.
+The language-model key goes in the same file as `GROQ_API_KEY=your-key-here` (it is also read from the environment variable of the same name). Never commit it; `BACKEND/.env` is git-ignored. `TRUTHGUARD_LLM_MODEL` chooses the model, and `TRUTHGUARD_LLM_MODE` is `live` (default), `record`, `cache` or `replay`.
 
 To use a different database port, start Docker with `TRUTHGUARD_DB_PORT=5440 docker compose -f OPS/docker-compose.yml up -d` and set the same port in `TRUTHGUARD_DATABASE_URL`.
 
