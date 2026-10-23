@@ -2,7 +2,11 @@
 call a paid or quota-limited API. A real client (Groq) implements LLMClient; FakeLLM is for tests."""
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import threading
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Union
 
 
@@ -38,9 +42,11 @@ class GroqLLM:
         timeout_seconds: float = 60.0,
         max_output_tokens: int = 8192,
         client: Any = None,
+        temperature: Optional[float] = None,
     ) -> None:
         self.model_name = model
         self._max_output_tokens = max_output_tokens
+        self._temperature = temperature
         if client is None:
             import groq
 
@@ -54,6 +60,8 @@ class GroqLLM:
 
     def complete(self, system: str, user: str, json_output: bool = False) -> str:
         options: Dict[str, Any] = {"max_completion_tokens": self._max_output_tokens}
+        if self._temperature is not None:
+            options["temperature"] = self._temperature
         if json_output:
             options["response_format"] = {"type": "json_object"}
         try:
@@ -107,4 +115,66 @@ class FakeLLM:
         reply = self._replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
+        return reply
+
+
+CACHE_MODES = ("live", "record", "cache", "replay")
+
+
+class CachingLLM:
+    """Wraps a client so that model replies can be recorded and replayed.
+
+    live    pass every call through; nothing is stored.
+    record  pass every call through and store the reply.
+    cache   use a stored reply if there is one, else call the model and store the reply (also lets an
+            interrupted benchmark resume).
+    replay  use stored replies only; a call with no stored reply raises LLMError, so a gap is a visible
+            verification_failed and never a silent fallback. `inner` may be None.
+
+    A reply is stored under the SHA-256 of model name, system prompt, user prompt and json_output. A failed
+    call is never stored. The file is JSON lines, appended as replies arrive."""
+
+    def __init__(self, inner: Optional[LLMClient], path: Union[str, Path], mode: str = "live",
+                 model_name: Optional[str] = None) -> None:
+        if mode not in CACHE_MODES:
+            raise ValueError("mode must be one of %s" % ", ".join(CACHE_MODES))
+        if inner is None and mode != "replay":
+            raise ValueError("a model client is needed unless mode is replay")
+        self.mode = mode
+        self._inner = inner
+        self._path = Path(path)
+        self.model_name = model_name or (inner.model_name if inner is not None else "replay")
+        self._lock = threading.Lock()
+        self._replies: Dict[str, str] = {}
+        self.hits = 0
+        self.misses = 0
+        if mode != "live" and self._path.exists():
+            for line in self._path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    entry = json.loads(line)
+                    self._replies[entry["key"]] = entry["reply"]
+
+    def _key(self, system: str, user: str, json_output: bool) -> str:
+        raw = json.dumps([self.model_name, system, user, bool(json_output)], ensure_ascii=False)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def _store(self, key: str, reply: str) -> None:
+        with self._lock:
+            self._replies[key] = reply
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with self._path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({"key": key, "model": self.model_name, "reply": reply}, ensure_ascii=False) + "\n")
+
+    def complete(self, system: str, user: str, json_output: bool = False) -> str:
+        if self.mode == "live":
+            return self._inner.complete(system, user, json_output=json_output)
+        key = self._key(system, user, json_output)
+        if self.mode in ("cache", "replay") and key in self._replies:
+            self.hits += 1
+            return self._replies[key]
+        self.misses += 1
+        if self.mode == "replay":
+            raise LLMError("No recorded reply for this prompt (replay mode). Record it first.")
+        reply = self._inner.complete(system, user, json_output=json_output)
+        self._store(key, reply)
         return reply
