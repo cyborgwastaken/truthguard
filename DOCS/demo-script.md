@@ -21,6 +21,14 @@ About 8 minutes. Everything here uses the fictional "Acme Corp" documents; nothi
    no network and no key. Replayed answers carry a visible "Replayed recording" tag; say so if you use it.
    Also record a screen video of one perfect run.
 
+## Pacing (read this)
+
+The free Groq tier allows about 8,000 tokens a minute and one question uses 5,000 to 7,000, so **a question asked
+right after another may wait 15 to 45 seconds** for the rate limit instead of failing. Ask the next question only after
+you have finished talking about the last one, and expect 5 to 40 seconds per answer. The loading text says it is working.
+If a wait would be longer than 45 seconds (a daily cap) the answer shows "Verification failed" with the reason; then use
+the recorded replay for the rest.
+
 ## The script
 
 **1. What it is (30 s).** "Companies keep policies in many documents. They get amended, drafted, and
