@@ -90,6 +90,7 @@ class Verification(BaseModel):
 
     as_of: date
     stage: str = "retrieval"
+    critic_ok: bool = False  # True only if the critic finished: an empty list of findings means nothing only then
     passages: List[PassageView] = Field(default_factory=list)
     scope_document_ids: List[str] = Field(default_factory=list)
     conflicts: List[ConflictVerdict] = Field(default_factory=list)
@@ -227,7 +228,8 @@ def answer_question(
 
     passages = retrieve(question, store, k=k, expand_related=True)
     lap("retrieval")
-    verification = Verification(as_of=as_of, passages=[_view(p, True) for p in passages])
+    # Nothing is in scope until the claims are known: the critic only ever sees the scope.
+    verification = Verification(as_of=as_of, passages=[_view(p, False) for p in passages])
     document_of = {p.chunk.chunk_id: p.document.document_id for p in passages}
 
     def finish(
@@ -287,6 +289,7 @@ def answer_question(
         return finish(AnswerStatus.VERIFICATION_FAILED, crit.failure_reason or "The check failed.", versions=versions)
 
     findings = crit.findings
+    verification.critic_ok = True
     verification.stale = list(findings.staleness)
     verification.unsupported = list(crit.unsupported_findings)
     verification.off_topic_ignored = crit.off_topic_ignored

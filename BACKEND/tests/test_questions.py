@@ -152,3 +152,36 @@ def test_health_reports_the_model_setup_without_calling_the_model(client, monkey
     monkeypatch.setattr(settings, "groq_api_key", None)
     llm = client.get("/health").json()["llm"]
     assert llm["key_present"] is False and llm["model"] and llm["mode"]
+
+
+def test_trust_report_and_evidence_graph_of_a_stored_answer(loaded):
+    answer_id = ask(loaded, superseded_replies())[0].json()["answer"]["answer_id"]
+
+    report = loaded.get("/answers/%s/trust-report" % answer_id).json()
+    assert [d["key"] for d in report["dimensions"]] == [
+        "evidence_coverage", "citation_support", "conflicts", "freshness", "provenance", "verification"]
+    assert report["status"] == "resolved" and "score" not in report
+    support = next(d for d in report["dimensions"] if d["key"] == "citation_support")
+    assert (support["numerator"], support["denominator"], support["level"]) == (2, 2, "ok")
+
+    graph = loaded.get("/answers/%s/evidence-graph" % answer_id).json()
+    assert {n["id"] for n in graph["nodes"] if n["kind"] == "document"} == {"remote_policy_v1", "remote_policy_v2"}
+    assert {e["relation"] for e in graph["edges"]} >= {"supports", "contradicts", "supersedes", "conflicts"}
+    supersedes = next(e for e in graph["edges"] if e["relation"] == "supersedes")
+    assert (supersedes["source"], supersedes["target"], supersedes["in_force"]) == ("remote_policy_v2", "remote_policy_v1", True)
+
+
+def test_trust_report_of_an_unresolved_conflict_warns(loaded):
+    fin, hr = "expense_receipt_deadline_finance::chunk_000", "expense_receipt_deadline_hr::chunk_000"
+    answer_id = ask(loaded, [
+        synth([("14 days.", [fin]), ("30 days.", [hr])]), contradictions(("receipt deadline", [fin, hr])), verdicts(True, True),
+    ], question="How long do employees have to submit expense receipts?")[0].json()["answer"]["answer_id"]
+    report = loaded.get("/answers/%s/trust-report" % answer_id).json()
+    assert any("disagree" in w for w in report["warnings"])
+    assert next(d for d in report["dimensions"] if d["key"] == "conflicts")["level"] == "problem"
+
+
+@pytest.mark.parametrize("path", ["trust-report", "evidence-graph"])
+def test_trust_report_and_graph_of_an_unknown_answer_are_404(client, path):
+    assert client.get("/answers/nope/%s" % path).status_code == 404
+

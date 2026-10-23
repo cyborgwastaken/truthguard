@@ -7,7 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from truthguard_agent.llm import CachingLLM, GroqLLM, LLMClient, LLMError
+from truthguard_agent.evidence_graph import EvidenceGraph, build_evidence_graph
 from truthguard_agent.orchestrator import answer_question
+from truthguard_agent.trust_report import TrustReport, build_trust_report
 
 from ..config import settings
 from ..db.models import AnswerCitationRow, AnswerRow, ClaimRow, EvidenceLinkRow
@@ -110,10 +112,26 @@ def list_answers(limit: int = Query(20, ge=1, le=100), session: Session = Depend
     ]
 
 
-@router.get("/answers/{answer_id}", response_model=AnswerResponse)
-def get_answer(answer_id: str, session: Session = Depends(get_session)):
-    """A stored answer, exactly as it was produced."""
+def _stored(session: Session, answer_id: str) -> AnswerResponse:
     row = session.get(AnswerRow, answer_id)
     if row is None or row.details is None:
         raise HTTPException(status_code=404, detail="Answer not found: %s" % answer_id)
     return AnswerResponse.model_validate(row.details)
+
+
+@router.get("/answers/{answer_id}", response_model=AnswerResponse)
+def get_answer(answer_id: str, session: Session = Depends(get_session)):
+    """A stored answer, exactly as it was produced."""
+    return _stored(session, answer_id)
+
+
+@router.get("/answers/{answer_id}/trust-report", response_model=TrustReport)
+def get_trust_report(answer_id: str, session: Session = Depends(get_session)):
+    """What was checked about this answer, as separate explained dimensions (no single score)."""
+    return build_trust_report(_stored(session, answer_id))
+
+
+@router.get("/answers/{answer_id}/evidence-graph", response_model=EvidenceGraph)
+def get_evidence_graph(answer_id: str, session: Session = Depends(get_session)):
+    """The claims, the documents they rest on, and how those documents relate."""
+    return build_evidence_graph(_stored(session, answer_id))

@@ -132,6 +132,7 @@ export interface UnsupportedClaimFinding {
 export interface Verification {
   as_of: string
   stage: 'retrieval' | 'synthesis' | 'critic' | 'resolution'
+  critic_ok: boolean
   passages: PassageView[]
   scope_document_ids: string[]
   conflicts: ConflictVerdict[]

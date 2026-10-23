@@ -291,3 +291,20 @@ def test_without_the_resolver_and_without_a_contradiction_the_answer_is_resolved
     llm = FakeLLM([synth([("Three days.", [V2])]), contradictions(), verdicts(True)])
     result = answer_question(Q_REMOTE, store, llm, AS_OF, use_resolver=False)
     assert result.answer.status == AnswerStatus.RESOLVED and result.answer.answer == "Three days."
+
+
+def test_a_failed_critic_is_never_recorded_as_a_finished_check(store):
+    result, _ = run(store, Q_REMOTE, [synth([("Three days.", [V2])]), LLMError("timeout")])
+    assert result.verification.critic_ok is False and result.verification.stage == "critic"
+
+
+def test_a_finished_critic_is_recorded_even_when_it_finds_nothing(store):
+    result, _ = run(store, Q_REMOTE, [synth([("Three days.", [V2])]), contradictions(), verdicts(True)])
+    assert result.verification.critic_ok is True
+
+
+def test_nothing_is_in_scope_when_the_critic_never_ran(store):
+    result, _ = run(store, "What is Acme Corp's policy on employee stock options?", [synth([], ["Not mentioned."])])
+    assert result.verification.passages and not any(p.in_scope for p in result.verification.passages)
+    assert result.verification.scope_document_ids == []
+
